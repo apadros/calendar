@@ -13,16 +13,19 @@
 	- Next reschedule (for periodically repeatable entries)
 - Commands
 	- Listing / printing
-		- By string, ID, 
+		- By string, ID, flags & groups
 		- A - means not
 		- All flags and groups
 	- Adding
 	- Modifying
 	- Rescheduling
-	- Deleteing
+	- Deleting
 	- Undoing / redoing
 - Save mods to calendar.txt
 - Help / usage message
 - Daily calendar.txt backup
 	- Copy and add current date if it doesn't already exists
 	- Limit to 1 week's worth?
+- Testbench / testbenches
+- Log file with all changes for that day
+	- Timestamp, ID, list of changes
