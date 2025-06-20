@@ -1,5 +1,4 @@
 - Parse command line arguments
-- calendar.txt file opening and loading
 - Parse file contents into a table / list of tasks and deadlines
 - Entries
 	- ID
