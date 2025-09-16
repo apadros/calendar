@@ -4,7 +4,7 @@
 	- ID
 	- String
 	- Flags
-		- Priority, awaiting response
+		- Priority, awaiting response, preempt
 	- Groups
 		- Up to 3 per entry
 		- e.g. #sample_group / @sample_group
@@ -15,8 +15,14 @@
 		- By string, ID, flags & groups
 		- A - means not
 		- All flags and groups
+		- <60 days, >60 days
+		- Automatically list preempt tasks with a date <30 days when listing priority tasks?
 	- Adding
+		- Print message "Task added", followed by task data
 	- Modifying
+		- Print the details which have been updated, followed by the entire task data
+			- E.g. Task ID / flag / group updated
+			- Keep it simple
 	- Rescheduling
 	- Deleting
 	- Undoing / redoing
