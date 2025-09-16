@@ -26,6 +26,7 @@
 	- Rescheduling
 	- Deleting
 	- Undoing / redoing
+	- When making any changes to an entry, display the updated portion of info before and after, then display the updated entry will all info
 - Save mods to calendar.txt
 - Help / usage message
 - Daily calendar.txt backup
