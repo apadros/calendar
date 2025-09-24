@@ -1,16 +1,9 @@
 @echo off
 
-if %1.==. ( goto Help )
-
 if not exist build ( mkdir build )
 pushd build
 
-cl /I..\..\lib64 ..\%1 /c
+cl /I..\..\lib64 /c /w /nologo ..\main.cpp
 
 popd
 exit /b
-
-:Help
-echo:
-echo Format: compile.bat file.cpp
-echo:
