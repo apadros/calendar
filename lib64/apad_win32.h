@@ -10,7 +10,7 @@
 
 // ******************** Memory ********************  //
 
-// Will automatically clear allocated memory
+												// Will automatically clear allocated memory
 imported_function void* Win32AllocateMemory(ui32 size);
 imported_function void  Win32FreeMemory(void* mem);
 
