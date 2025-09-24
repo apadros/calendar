@@ -4,6 +4,8 @@
 #include "apad_string.h"
 #include "apad_win32.h"
 
+#define DEBUG_ON
+
 // Task data
 // ID - int
 // String
@@ -44,11 +46,15 @@ ConsoleAppEntryPoint(args, argsCount) {
 	}
 
 	// Parse command line arguments
+	#ifndef DEBUG_ON
 	if(argsCount < 2) {
 		LogError("No commands supplied.\n");
 		Log("Usage: calendar [add] [list] [delete | del] [modify | mod] [reschedule | res] [undo] [redo]\n");
 		goto program_exit;
 	}
+	#else
+		args[1] = "list";
+	#endif
 		
 	// @TODO - Log file for the day
 	// 			   - Timestamp, ID, list of changes
@@ -70,9 +76,45 @@ ConsoleAppEntryPoint(args, argsCount) {
 		// @TODO - Parse calendar entries and display
 		// id(8 bit unsigned) task_text(string) date_added(dd/mm/yyyy) date_due_by(dd/mm/yyyy | -) reschedule_data(days | -) flag(! | ? | @) groups(#id1 #id2 ... #id5)
 		
-		const char* start = (const char*)calendar.memory;
+		char*       data = (char*)calendar.memory;
+		const char* id = Null;
+		const char* task = Null;
+		const char* dataAdded = Null;
+		const char* dataDue = Null;
+		const char* reschedulePeriod = Null;
+		const char* flag = Null;
+		const char* group = Null;
 		
-		char id[3] = { '\0' };
+		// @TODO - Continue here
+		const char* string = data;
+		bool        scanningTaskString = false;
+		ForAll(calendar.size) {
+			if(data[it] == ' ' && scanningTaskString == false) {
+				data[it] = '\0';
+				
+				if(id == Null)
+					id = string;
+				else if(dataAdded == Null)
+					dataAdded = string;
+				else if(dataDue == Null)
+					dataDue = string;
+				else if(reschedulePeriod == Null)
+					reschedulePeriod = string;
+				
+				string = data + it + 1;
+			}
+			else if(data[it] == '\"') { // Task string start & end
+				if(scanningTaskString == false)
+					task = data + it + 1;
+				else {
+					data[it] = '\0';
+					string = data + it + 1;
+				}
+				
+				Toggle(scanningTaskString);
+			}
+		}
+			
 		
 		// @TODO - Loop until first space is found, copy chars, ToString(), continue from there
 		
@@ -107,5 +149,5 @@ ConsoleAppEntryPoint(args, argsCount) {
 	if(IsValid(calendar) == true)
 		FreeFile(calendar);
 	
-	goto program_exit;
+	return 0;
 }
