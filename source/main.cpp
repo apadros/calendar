@@ -6,6 +6,20 @@
 
 #define DEBUG_ON
 
+// @TODO - Export to API
+bool IsLetter(char c) {
+	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z';
+}
+
+// @TODO - Export to API
+bool IsNumber(char c) {
+	return c >= '0' && c <= '9';
+}
+
+bool IsValidChar(char c) {
+  return IsLetter(c) == true || IsNumber(c) == true || c == '\"' || c == '/' || c == '-' || c == '?' || c == '!' || c == '#';
+}
+
 // Task data
 // ID - int
 // String
@@ -30,7 +44,11 @@
 ConsoleAppEntryPoint(args, argsCount) {
 	Log("\n"); // Insert blank line for clarity
 	
+	#ifdef DEBUG_ON
+	const char* dataPath = "../../data/calendar.txt";
+	#else
 	const char* dataPath = "data/calendar.txt";
+	#endif
 	
 	// Check existance of calendar.txt
 	if(FileExists(dataPath) == false) {
@@ -85,39 +103,45 @@ ConsoleAppEntryPoint(args, argsCount) {
 		const char* flag = Null;
 		const char* group = Null;
 		
-		// @TODO - Continue here
-		const char* string = data;
+		const char* toStore = Null; // Temp string
 		bool        scanningTaskString = false;
 		ForAll(calendar.size) {
-			if(data[it] == ' ' && scanningTaskString == false) {
+			char c = data[it];
+			
+			if(toStore == Null && IsValidChar(c) == true) {
+				if(c == '\"') { // Beginning of the task string
+					toStore = data + it + 1;
+					scanningTaskString = true;
+				}
+				else
+					toStore = data + it;
+			}
+			else if(scanningTaskString == true && c == '\"') { // Finish scanning task string
+			  data[it] = '\0';
+				task = toStore;
+				toStore = Null;
+				scanningTaskString = false;
+			}
+			else if(scanningTaskString == false && toStore != Null && IsValidChar(c) == false) { // Finish scanning other data
 				data[it] = '\0';
 				
 				if(id == Null)
-					id = string;
+					id = toStore;
 				else if(dataAdded == Null)
-					dataAdded = string;
+					dataAdded = toStore;
 				else if(dataDue == Null)
-					dataDue = string;
+					dataDue = toStore;
 				else if(reschedulePeriod == Null)
-					reschedulePeriod = string;
+					reschedulePeriod = toStore;
+				else if(flag == Null)
+					flag = toStore;
 				
-				string = data + it + 1;
-			}
-			else if(data[it] == '\"') { // Task string start & end
-				if(scanningTaskString == false)
-					task = data + it + 1;
-				else {
-					data[it] = '\0';
-					string = data + it + 1;
-				}
-				
-				Toggle(scanningTaskString);
+				toStore = Null;
 			}
 		}
+		
+		int a = 0;
 			
-		
-		// @TODO - Loop until first space is found, copy chars, ToString(), continue from there
-		
 	}
 	else if(StringsAreEqual(command, "delete") == true) { // @TODO
 	}
