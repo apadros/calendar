@@ -1,3 +1,4 @@
+#include "apad_array.h"
 #include "apad_base_types.h"
 #include "apad_error.h"
 #include "apad_file.h"
@@ -6,12 +7,14 @@
 
 #define DEBUG_ON
 
-// @TODO - Export to API
+const ui8 MaxGroups = 5;
+
+// @TODO - Import from API once implemented
 bool IsLetter(char c) {
 	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z';
 }
 
-// @TODO - Export to API
+// @TODO - Import from API once implemented
 bool IsNumber(char c) {
 	return c >= '0' && c <= '9';
 }
@@ -20,22 +23,9 @@ bool IsValidChar(char c) {
   return IsLetter(c) == true || IsNumber(c) == true || c == '\"' || c == '/' || c == '-' || c == '?' || c == '!' || c == '#';
 }
 
-// Task data
-// ID - int
-// String
-// Flags - priority, awaiting response / feedback, preempt
-// Groups
-// - Preceded by #
-// Upper limit of 5?
-// Date added
-// Date due by
-// - - means none
-// - Store as dd/mm/yyyy, display as days left or >60 days
-// Reschedule info
-// - - if none
-
+// Display dates as days left or >60 days
 // Storage format
-// id(8 bit unsigned) task_text(string) date_added(dd/mm/yyyy) date_due_by(dd/mm/yyyy | -) reschedule_data(days | -) flag(! | ? | @) groups(#id1 #id2 ... #id5)
+// id(8 bit unsigned) task_text(string) date_added(dd/mm/yyyy) date_due_by(dd/mm/yyyy | -) reschedule_data(days | -) flag(! | ? | @ | -) groups(#id1 #id2 ... #id5)\r\n
 
 #define Log(_string) printf("%s\n", _string)
 #define LogError(_string) printf("ERROR - %s\n", _string)
@@ -97,18 +87,38 @@ ConsoleAppEntryPoint(args, argsCount) {
 		char*       data = (char*)calendar.memory;
 		const char* id = Null;
 		const char* task = Null;
-		const char* dataAdded = Null;
-		const char* dataDue = Null;
+		const char* dateAdded = Null;
+		const char* dateDue = Null;
 		const char* reschedulePeriod = Null;
 		const char* flag = Null;
-		const char* group = Null;
+		const char* groups[MaxGroups] = { Null };
 		
 		const char* toStore = Null; // Temp string
 		bool        scanningTaskString = false;
 		ForAll(calendar.size) {
 			char c = data[it];
 			
-			if(toStore == Null && IsValidChar(c) == true) {
+			if(c == '\n') { // Reset task data
+			  // @TODO - Finish task printing
+				printf("ID: %s\n", id);
+				printf("Task: %s\n", task);
+				printf("Data added: %s\n", dateAdded);
+				printf("Data due: %s\n", dateDue);
+				printf("Reschedule: %s\n", reschedulePeriod);
+				printf("Flag: %s\n", flag);
+				// printf("Groups: %s\n", flag);
+				
+				id = Null;
+				task = Null;
+				dateAdded = Null;
+				dateDue = Null;
+				reschedulePeriod = Null;
+				flag = Null;
+				
+				ForAll(MaxGroups)
+					groups[it] = Null;
+			}
+			else if(toStore == Null && IsValidChar(c) == true) {
 				if(c == '\"') { // Beginning of the task string
 					toStore = data + it + 1;
 					scanningTaskString = true;
@@ -127,21 +137,26 @@ ConsoleAppEntryPoint(args, argsCount) {
 				
 				if(id == Null)
 					id = toStore;
-				else if(dataAdded == Null)
-					dataAdded = toStore;
-				else if(dataDue == Null)
-					dataDue = toStore;
+				else if(dateAdded == Null)
+					dateAdded = toStore;
+				else if(dateDue == Null)
+					dateDue = toStore;
 				else if(reschedulePeriod == Null)
 					reschedulePeriod = toStore;
 				else if(flag == Null)
 					flag = toStore;
+				else if(task != Null) {
+					ForAll(MaxGroups) {
+						if(groups[it] == Null) {
+							groups[it] = toStore;
+							break;
+						}
+					}
+				}
 				
 				toStore = Null;
 			}
 		}
-		
-		int a = 0;
-			
 	}
 	else if(StringsAreEqual(command, "delete") == true) { // @TODO
 	}
