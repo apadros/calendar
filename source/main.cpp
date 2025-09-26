@@ -28,13 +28,14 @@ bool IsValidChar(char c) {
 }
 
 void PrintSingleTask(const char* id, const char* task, const char* dateAdded, const char* dateDue, const char* reschedulePeriod, const char* flag, const char** groups) {
-	AssertRet(id != Null);
-	AssertRet(task != Null);
-	AssertRet(dateAdded != Null);
-	AssertRet(dateDue != Null);
-	AssertRet(reschedulePeriod	!= Null);
-	AssertRet(flag != Null);
-	AssertRet(groups != Null);
+  // @TODO - Add assertions once program takes shape
+	// AssertRet(id != Null);
+	// AssertRet(task != Null);
+	// AssertRet(dateAdded != Null);
+	// AssertRet(dateDue != Null);
+	// AssertRet(reschedulePeriod	!= Null);
+	// AssertRet(flag != Null);
+	// AssertRet(groups != Null);
 	
 	printf("ID:         %s\n", id);
 	printf("String:     %s\n", task);
@@ -51,12 +52,18 @@ void PrintSingleTask(const char* id, const char* task, const char* dateAdded, co
 	}
 }
 
-// Display dates as days left or >60 days
+// @TODO - Display dates as days left or >60 days
 // Storage format
 // id(8 bit unsigned) task_text(string) date_added(dd/mm/yyyy) date_due_by(dd/mm/yyyy | -) reschedule_data(days | -) flag(! | ? | @ | -) groups(#id1 #id2 ... #id5)\r\n
 
 ConsoleAppEntryPoint(args, argsCount) {
 	Log("\n"); // Insert blank line for clarity
+	
+	// #ifdef APAD_DEBUG
+	// 	argsCount = 3;
+	// 	args[1] = "add";
+	// 	args[2] = "hello";
+	// #endif
 	
 	#ifdef APAD_DEBUG
 	const char* dataPath = "../../data/calendar.txt";
@@ -78,25 +85,19 @@ ConsoleAppEntryPoint(args, argsCount) {
 	}
 
 	// Parse command line arguments
-	#ifndef APAD_DEBUG
 	if(argsCount < 2) {
 		LogError("No commands supplied.\n");
 		goto usage_msg;
 	}
-	#else
-		args[1] = "list";
-	#endif
 		
 	// @TODO - Log file for the day
-	// 			   - Timestamp, ID, list of changes
-	
-	
+	// 			   - Timestamp, ID, list of changes	
 		
 	const char* command = args[1];
 	if(StringsAreEqual(command, "add") == true) { // @TODO
 	  // @TODO - If error, goto usage_msg
 		
-		const char* id = Null; // @TODO - Generate
+		const char* id = "0"; // @TODO - Generate
 		const char* task = Null;
 		const char* dateAdded = Null; // @TODO - Add, import from API when available
 		const char* dateDue = Null;
@@ -108,10 +109,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 		FromTo(2, argsCount) {
 			const char* arg = args[it];
 			
-			if(arg[0] == '\"') { // Entry string @TODO - Check if the " is actually included in the argument, think probably not
-				task = arg;
-			}
-			else if(arg[0] == '+' && dateDue != Null) { // Reschedule period
+			if(arg[0] == '+' && dateDue != Null) { // Reschedule period
 				reschedulePeriod = arg;
 			}
 			else if( // Date due
@@ -120,6 +118,8 @@ ConsoleAppEntryPoint(args, argsCount) {
 							StringsAreEqual(arg, "fri") || StringsAreEqual(arg, "sat") || StringsAreEqual(arg, "sun")) 
 			{
 				dateDue = arg;
+				
+				// @TODO - Convert to dd/mm/yyyy - import from API once implemented
 			}
 			else if(arg[0] == '!' || arg[0] == '?' || arg[0] == '@') { // Flag
 				flag = arg;
@@ -132,13 +132,22 @@ ConsoleAppEntryPoint(args, argsCount) {
 					}
 				}
 			}
+			else // If none of the above it is considered to be an entry string. The " is not carried as part of the argument
+				task = arg;
 		}
 		
-	  Log("Task added");
+		if(task == Null) {
+			LogError("No string specified.\n");
+			goto usage_msg;
+		}
 		
+	  Log("Task added\n");
 		
 		PrintSingleTask(id, task, dateAdded, dateDue, reschedulePeriod, flag, groups);
 		
+		// @TODO - Store in calendar.txt
+		
+		goto program_exit;
 	}
 	else if(StringsAreEqual(command, "list") == true) {
 	  // @TODO
