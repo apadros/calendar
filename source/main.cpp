@@ -84,6 +84,9 @@ ConsoleAppEntryPoint(args, argsCount) {
 		// @TODO - Parse calendar entries and display
 		// id(8 bit unsigned) task_text(string) date_added(dd/mm/yyyy) date_due_by(dd/mm/yyyy | -) reschedule_data(days | -) flag(! | ? | @) groups(#id1 #id2 ... #id5)
 		
+		// @TODO - search / list filters - view only task, id, all tasks from #group, etc
+		// 			 	- E.g. view only the groups of tasks due by x date
+		
 		char*       data = (char*)calendar.memory;
 		const char* id = Null;
 		const char* task = Null;
@@ -100,13 +103,19 @@ ConsoleAppEntryPoint(args, argsCount) {
 			
 			if(c == '\n') { // Reset task data
 			  // @TODO - Finish task printing
-				printf("ID: %s\n", id);
-				printf("Task: %s\n", task);
-				printf("Data added: %s\n", dateAdded);
-				printf("Data due: %s\n", dateDue);
+				printf("ID:         %s\n", id);
+				printf("String:     %s\n", task);
+				printf("Date added: %s\n", dateAdded);
+				printf("Date due:   %s\n", dateDue);
 				printf("Reschedule: %s\n", reschedulePeriod);
-				printf("Flag: %s\n", flag);
-				// printf("Groups: %s\n", flag);
+				printf("Flag:       %s\n", flag);
+				if(groups[0] != Null) { // Groups present
+					printf("Groups:     %s\n", groups[0]);
+					FromTo(1, MaxGroups) {
+						if(groups[it] != Null)
+							printf("            %s\n", groups[it]);
+					}
+				}
 				
 				id = Null;
 				task = Null;
@@ -117,6 +126,8 @@ ConsoleAppEntryPoint(args, argsCount) {
 				
 				ForAll(MaxGroups)
 					groups[it] = Null;
+					
+				Log("\n");
 			}
 			else if(toStore == Null && IsValidChar(c) == true) {
 				if(c == '\"') { // Beginning of the task string
