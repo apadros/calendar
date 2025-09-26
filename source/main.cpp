@@ -1,3 +1,6 @@
+#define APAD_DEBUG
+
+#include <stdio.h>
 #include "apad_array.h"
 #include "apad_base_types.h"
 #include "apad_error.h"
@@ -5,9 +8,10 @@
 #include "apad_string.h"
 #include "apad_win32.h"
 
-#define DEBUG_ON
-
 const ui8 MaxGroups = 5;
+
+#define Log(_string) printf("%s\n", _string)
+#define LogError(_string) printf("ERROR - %s\n", _string)
 
 // @TODO - Import from API once implemented
 bool IsLetter(char c) {
@@ -23,18 +27,38 @@ bool IsValidChar(char c) {
   return IsLetter(c) == true || IsNumber(c) == true || c == '\"' || c == '/' || c == '-' || c == '?' || c == '!' || c == '#';
 }
 
+void PrintSingleTask(const char* id, const char* task, const char* dateAdded, const char* dateDue, const char* reschedulePeriod, const char* flag, const char** groups) {
+	AssertRet(id != Null);
+	AssertRet(task != Null);
+	AssertRet(dateAdded != Null);
+	AssertRet(dateDue != Null);
+	AssertRet(reschedulePeriod	!= Null);
+	AssertRet(flag != Null);
+	AssertRet(groups != Null);
+	
+	printf("ID:         %s\n", id);
+	printf("String:     %s\n", task);
+	printf("Date added: %s\n", dateAdded);
+	printf("Date due:   %s\n", dateDue);
+	printf("Reschedule: %s\n", reschedulePeriod);
+	printf("Flag:       %s\n", flag);
+	if(groups[0] != Null) { // Check if any groups present
+		printf("Groups:     %s\n", groups[0]);
+		FromTo(1, MaxGroups) {
+			if(groups[it] != Null)
+				printf("            %s\n", groups[it]);
+		}
+	}
+}
+
 // Display dates as days left or >60 days
 // Storage format
 // id(8 bit unsigned) task_text(string) date_added(dd/mm/yyyy) date_due_by(dd/mm/yyyy | -) reschedule_data(days | -) flag(! | ? | @ | -) groups(#id1 #id2 ... #id5)\r\n
 
-#define Log(_string) printf("%s\n", _string)
-#define LogError(_string) printf("ERROR - %s\n", _string)
-
-#include <stdio.h>
 ConsoleAppEntryPoint(args, argsCount) {
 	Log("\n"); // Insert blank line for clarity
 	
-	#ifdef DEBUG_ON
+	#ifdef APAD_DEBUG
 	const char* dataPath = "../../data/calendar.txt";
 	#else
 	const char* dataPath = "data/calendar.txt";
@@ -54,11 +78,10 @@ ConsoleAppEntryPoint(args, argsCount) {
 	}
 
 	// Parse command line arguments
-	#ifndef DEBUG_ON
+	#ifndef APAD_DEBUG
 	if(argsCount < 2) {
 		LogError("No commands supplied.\n");
-		Log("Usage: calendar [add] [list] [delete | del] [modify | mod] [reschedule | res] [undo] [redo]\n");
-		goto program_exit;
+		goto usage_msg;
 	}
 	#else
 		args[1] = "list";
@@ -71,8 +94,50 @@ ConsoleAppEntryPoint(args, argsCount) {
 		
 	const char* command = args[1];
 	if(StringsAreEqual(command, "add") == true) { // @TODO
-	  
-		// @TODO - Print message "task added", followed by task data
+	  // @TODO - If error, goto usage_msg
+		
+		const char* id = Null; // @TODO - Generate
+		const char* task = Null;
+		const char* dateAdded = Null; // @TODO - Add, import from API when available
+		const char* dateDue = Null;
+		const char* reschedulePeriod = Null;
+		const char* flag = Null;
+		const char* groups[MaxGroups] = { Null };
+		
+		// Scan through remaining arguments
+		FromTo(2, argsCount) {
+			const char* arg = args[it];
+			
+			if(arg[0] == '\"') { // Entry string @TODO - Check if the " is actually included in the argument, think probably not
+				task = arg;
+			}
+			else if(arg[0] == '+' && dateDue != Null) { // Reschedule period
+				reschedulePeriod = arg;
+			}
+			else if( // Date due
+			        IsNumber(arg[0]) == true || arg[0] == '.' || arg[0] == '+' || 
+			        StringsAreEqual(arg, "mon") || StringsAreEqual(arg, "tue") || StringsAreEqual(arg, "wed") || StringsAreEqual(arg, "thu") || 
+							StringsAreEqual(arg, "fri") || StringsAreEqual(arg, "sat") || StringsAreEqual(arg, "sun")) 
+			{
+				dateDue = arg;
+			}
+			else if(arg[0] == '!' || arg[0] == '?' || arg[0] == '@') { // Flag
+				flag = arg;
+			}
+			else if(arg[0] == '#') { // Group
+				ForAll(MaxGroups) {
+					if(groups[it] == Null) {
+						groups[it] = arg;
+						break;
+					}
+				}
+			}
+		}
+		
+	  Log("Task added");
+		
+		
+		PrintSingleTask(id, task, dateAdded, dateDue, reschedulePeriod, flag, groups);
 		
 	}
 	else if(StringsAreEqual(command, "list") == true) {
@@ -103,19 +168,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 			
 			if(c == '\n') { // Reset task data
 			  // @TODO - Finish task printing
-				printf("ID:         %s\n", id);
-				printf("String:     %s\n", task);
-				printf("Date added: %s\n", dateAdded);
-				printf("Date due:   %s\n", dateDue);
-				printf("Reschedule: %s\n", reschedulePeriod);
-				printf("Flag:       %s\n", flag);
-				if(groups[0] != Null) { // Groups present
-					printf("Groups:     %s\n", groups[0]);
-					FromTo(1, MaxGroups) {
-						if(groups[it] != Null)
-							printf("            %s\n", groups[it]);
-					}
-				}
+				PrintSingleTask(id, task, dateAdded, dateDue, reschedulePeriod, flag, groups);
 				
 				id = Null;
 				task = Null;
@@ -193,8 +246,11 @@ ConsoleAppEntryPoint(args, argsCount) {
 	// @TODO - Daily local backup at the start of the day
 	// 			   - Limit to 10 max previous logs
 	//				 - Store with current date
-	// 
-	
+	//
+
+  usage_msg:
+	Log("Usage: calendar [add] [list] [delete | del] [modify | mod] [reschedule | res] [undo] [redo]\n");
+			
 	program_exit:
 	if(IsValid(calendar) == true)
 		FreeFile(calendar);
