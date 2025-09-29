@@ -84,7 +84,6 @@ void PrintSingleTask(const char* id, const char* task, const char* dateAdded, co
 	}
 }
 
-// @TODO - Display dates as days left or >60 days
 // Storage format
 // id(8 bit unsigned) task_text(string) date_added(dd/mm/yyyy) date_due_by(dd/mm/yyyy | -) reschedule_data(days | -) flag(! | ? | @ | -) groups(#id1 #id2 ... #id5)\r\n
 
@@ -95,8 +94,9 @@ ConsoleAppEntryPoint(args, argsCount) {
 		#if 1
 		args[1] = "add";
 		args[2] = "hello";
-		args[3] = "+2";
-		argsCount = 4;	
+		args[3] = "+61";
+		args[4] = "+2";
+		argsCount = 5;	
 		#endif
 	#endif
 	
@@ -145,47 +145,56 @@ ConsoleAppEntryPoint(args, argsCount) {
 			const char* arg = args[it];
 			
 			if(arg[0] == '+' && dateDue[0] != 'd') { // Reschedule period
-				reschedulePeriod = arg;
+				const char* number = arg + 1;
+				si32 				i = StringToInt(number);
+				reschedulePeriod = number;
 			}
 			else if( // Date due
 			        IsNumber(arg[0]) == true || arg[0] == '.' || arg[0] == '+' || 
 			        StringsAreEqual(arg, "mon") || StringsAreEqual(arg, "tue") || StringsAreEqual(arg, "wed") || StringsAreEqual(arg, "thu") || 
 							StringsAreEqual(arg, "fri") || StringsAreEqual(arg, "sat") || StringsAreEqual(arg, "sun")) 
 			{
-				ui32   timeOffset = 0;
 				if(IsNumber(arg[0]) == true) { // Assumed dd/mm/yy or dd/mm/yyyy format. Convert to dd/mm/yyyy if needed
 				}
 				else if(arg[0] == '+') { // Offset from today
 				  const char* number = arg + 1;
 					si32 				i = StringToInt(number);
 					
-					auto date = GetCurrentDate(i);
-					
-					auto temp = ToString(date.day);
-					if(date.day <= 9) {
-						dateDue[0] = '0';
-						dateDue[1] = temp.string[0];
+					if(i > 60) {
+						dateDue[0] = '>';
+						dateDue[1] = '6';
+						dateDue[2] = '0';
+						dateDue[3] = '\0';
 					}
 					else {
-						dateDue[0] = temp.string[0];
-						dateDue[1] = temp.string[1];
+						auto date = GetCurrentDate(i);
+						
+						auto temp = ToString(date.day);
+						if(date.day <= 9) {
+							dateDue[0] = '0';
+							dateDue[1] = temp.string[0];
+						}
+						else {
+							dateDue[0] = temp.string[0];
+							dateDue[1] = temp.string[1];
+						}
+						
+						temp = ToString(date.month);
+						if(date.month <= 9) {
+							dateDue[3] = '0';
+							dateDue[4] = temp.string[0];
+						}
+						else {
+							dateDue[3] = temp.string[0];
+							dateDue[4] = temp.string[1];
+						}
+						
+						temp = ToString(date.year);
+						dateDue[6] = temp.string[0];
+						dateDue[7] = temp.string[1];
+						dateDue[8] = temp.string[2];
+						dateDue[9] = temp.string[3];
 					}
-					
-					temp = ToString(date.month);
-					if(date.month <= 9) {
-						dateDue[3] = '0';
-						dateDue[4] = temp.string[0];
-					}
-					else {
-						dateDue[3] = temp.string[0];
-						dateDue[4] = temp.string[1];
-					}
-					
-					temp = ToString(date.year);
-					dateDue[6] = temp.string[0];
-					dateDue[7] = temp.string[1];
-					dateDue[8] = temp.string[2];
-					dateDue[9] = temp.string[3];
 				}
 				else { // Assumed to be a day of the week @TODO
 				}
