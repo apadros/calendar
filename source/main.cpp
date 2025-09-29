@@ -59,6 +59,51 @@ date GetCurrentDate(si32 offsetDays) {
 	return ret;
 }
 
+// @EXPORT_API
+short_string DateToString(date d) {
+	short_string ret;
+	ret.string[0] = 'd';
+	ret.string[1] = 'd';
+	ret.string[2] = '/';
+	ret.string[3] = 'm';
+	ret.string[4] = 'm';
+	ret.string[5] = '/';
+	ret.string[6] = 'y';
+	ret.string[7] = 'y';
+	ret.string[8] = 'y';
+	ret.string[9] = 'y';
+	ret.string[10] = '0';
+	
+	auto date = GetCurrentDate(Null);
+	auto temp = ToString(date.day);
+	if(date.day <= 9) {
+		ret.string[0] = '0';
+		ret.string[1] = temp.string[0];
+	}
+	else {
+		ret.string[0] = temp.string[0];
+		ret.string[1] = temp.string[1];
+	}
+	
+	temp = ToString(date.month);
+	if(date.month <= 9) {
+		ret.string[3] = '0';
+		ret.string[4] = temp.string[0];
+	}
+	else {
+		ret.string[3] = temp.string[0];
+		ret.string[4] = temp.string[1];
+	}
+	
+	temp = ToString(date.year);
+	ret.string[6] = temp.string[0];
+	ret.string[7] = temp.string[1];
+	ret.string[8] = temp.string[2];
+	ret.string[9] = temp.string[3];
+	
+	return ret;
+}
+
 void PrintSingleTask(const char* id, const char* task, const char* dateAdded, const char* dateDue, const char* reschedulePeriod, const char* flag, const char** groups) {
   // @TODO - Add assertions once program takes shape
 	// AssertRet(id != Null);
@@ -134,11 +179,20 @@ ConsoleAppEntryPoint(args, argsCount) {
 		
 		const char* id = "0"; // @TODO - Generate
 		const char* task = Null;
-		const char* dateAdded = Null; // @TODO - Add, import from API when available
+		      char  dateAdded[] = "dd/mm/yyyy\0"; // @TODO - Add, import from API when available
 					char  dateDue[] = "dd/mm/yyyy\0";
 		const char* reschedulePeriod = Null;
 		const char* flag = Null;
 		const char* groups[MaxGroups] = { Null };
+		
+		// Date added 
+		{
+			auto date = GetCurrentDate(Null);
+			auto string = DateToString(date);
+			auto length = GetStringLength(dateAdded, false);
+			ForAll(length)
+				dateAdded[it] = string.string[it];
+		}
 		
 		// Scan through remaining arguments
 		FromTo(2, argsCount) {
@@ -168,32 +222,10 @@ ConsoleAppEntryPoint(args, argsCount) {
 					}
 					else {
 						auto date = GetCurrentDate(i);
-						
-						auto temp = ToString(date.day);
-						if(date.day <= 9) {
-							dateDue[0] = '0';
-							dateDue[1] = temp.string[0];
-						}
-						else {
-							dateDue[0] = temp.string[0];
-							dateDue[1] = temp.string[1];
-						}
-						
-						temp = ToString(date.month);
-						if(date.month <= 9) {
-							dateDue[3] = '0';
-							dateDue[4] = temp.string[0];
-						}
-						else {
-							dateDue[3] = temp.string[0];
-							dateDue[4] = temp.string[1];
-						}
-						
-						temp = ToString(date.year);
-						dateDue[6] = temp.string[0];
-						dateDue[7] = temp.string[1];
-						dateDue[8] = temp.string[2];
-						dateDue[9] = temp.string[3];
+						short_string string = DateToString(date);
+						auto length = GetStringLength(dateAdded, false);
+						ForAll(length)
+							dateAdded[it] = string.string[it];
 					}
 				}
 				else { // Assumed to be a day of the week @TODO
