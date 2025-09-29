@@ -1,6 +1,8 @@
 #define APAD_DEBUG
 
 #include <stdio.h>
+#define _CRT_SECURE_NO_WARNINGS
+#include <time.h>
 #include "apad_array.h"
 #include "apad_base_types.h"
 #include "apad_error.h"
@@ -13,18 +15,48 @@ const ui8 MaxGroups = 5;
 #define Log(_string) printf("%s\n", _string)
 #define LogError(_string) printf("ERROR - %s\n", _string)
 
-// @TODO - Import from API once implemented
+// @EXPORT_API apad_string.cpp
 bool IsLetter(char c) {
 	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z';
 }
 
-// @TODO - Import from API once implemented
+// @EXPORT_API apad_string.cpp
 bool IsNumber(char c) {
 	return c >= '0' && c <= '9';
 }
 
+// @EXPORT_API apad_string.cpp
 bool IsValidChar(char c) {
   return IsLetter(c) == true || IsNumber(c) == true || c == '\"' || c == '/' || c == '-' || c == '?' || c == '!' || c == '#';
+}
+
+// @EXPORT_API apad_string.cpp
+#include <stdlib.h>
+si32 StringToInt(const char* string) {
+  AssertRet(string, Null);
+  return atoi(string);
+}
+
+// @EXPORT_API
+struct date {
+  ui8  dayOfTheWeek; // 1 -> 7
+  ui8  day; 				 // 1 -> 31
+  ui8  month; 			 // 1 -> 12
+  ui16 year;
+};
+
+// @EXPORT_API
+#include <time.h>
+date GetCurrentDate(si32 offsetDays) {
+	time_t timeNowSecs = time(NULL) + offsetDays * 24 * 60 * 60;
+	auto*  timeNow = localtime(&timeNowSecs); // UTC time
+	
+	date ret = {};
+	ret.dayOfTheWeek = timeNow->tm_wday == 0 ? 7 : timeNow->tm_wday;
+	ret.year = 1900 + timeNow->tm_year;
+	ret.month = 1 + timeNow->tm_mon;
+	ret.day = timeNow->tm_mday;
+	return ret;
 }
 
 void PrintSingleTask(const char* id, const char* task, const char* dateAdded, const char* dateDue, const char* reschedulePeriod, const char* flag, const char** groups) {
@@ -59,17 +91,20 @@ void PrintSingleTask(const char* id, const char* task, const char* dateAdded, co
 ConsoleAppEntryPoint(args, argsCount) {
 	Log("\n"); // Insert blank line for clarity
 	
-	// #ifdef APAD_DEBUG
-	// 	argsCount = 3;
-	// 	args[1] = "add";
-	// 	args[2] = "hello";
-	// #endif
+	#ifdef APAD_DEBUG
+		#if 1
+		args[1] = "add";
+		args[2] = "hello";
+		args[3] = "+2";
+		argsCount = 4;	
+		#endif
+	#endif
 	
 	#ifdef APAD_DEBUG
 	const char* dataPath = "../../data/calendar.txt";
 	#else
 	const char* dataPath = "data/calendar.txt";
-	#endif
+	#endif 
 	
 	// Check existance of calendar.txt
 	if(FileExists(dataPath) == false) {
@@ -100,7 +135,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 		const char* id = "0"; // @TODO - Generate
 		const char* task = Null;
 		const char* dateAdded = Null; // @TODO - Add, import from API when available
-		const char* dateDue = Null;
+					char  dateDue[] = "dd/mm/yyyy\0";
 		const char* reschedulePeriod = Null;
 		const char* flag = Null;
 		const char* groups[MaxGroups] = { Null };
@@ -109,7 +144,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 		FromTo(2, argsCount) {
 			const char* arg = args[it];
 			
-			if(arg[0] == '+' && dateDue != Null) { // Reschedule period
+			if(arg[0] == '+' && dateDue[0] != 'd') { // Reschedule period
 				reschedulePeriod = arg;
 			}
 			else if( // Date due
@@ -117,9 +152,44 @@ ConsoleAppEntryPoint(args, argsCount) {
 			        StringsAreEqual(arg, "mon") || StringsAreEqual(arg, "tue") || StringsAreEqual(arg, "wed") || StringsAreEqual(arg, "thu") || 
 							StringsAreEqual(arg, "fri") || StringsAreEqual(arg, "sat") || StringsAreEqual(arg, "sun")) 
 			{
-				dateDue = arg;
+				ui32   timeOffset = 0;
+				if(IsNumber(arg[0]) == true) { // Assumed dd/mm/yy or dd/mm/yyyy format. Convert to dd/mm/yyyy if needed
+				}
+				else if(arg[0] == '+') { // Offset from today
+				  const char* number = arg + 1;
+					si32 				i = StringToInt(number);
+					
+					auto date = GetCurrentDate(i);
+					
+					auto temp = ToString(date.day);
+					if(date.day <= 9) {
+						dateDue[0] = '0';
+						dateDue[1] = temp.string[0];
+					}
+					else {
+						dateDue[0] = temp.string[0];
+						dateDue[1] = temp.string[1];
+					}
+					
+					temp = ToString(date.month);
+					if(date.month <= 9) {
+						dateDue[3] = '0';
+						dateDue[4] = temp.string[0];
+					}
+					else {
+						dateDue[3] = temp.string[0];
+						dateDue[4] = temp.string[1];
+					}
+					
+					temp = ToString(date.year);
+					dateDue[6] = temp.string[0];
+					dateDue[7] = temp.string[1];
+					dateDue[8] = temp.string[2];
+					dateDue[9] = temp.string[3];
+				}
+				else { // Assumed to be a day of the week @TODO
+				}
 				
-				// @TODO - Convert to dd/mm/yyyy - import from API once implemented
 			}
 			else if(arg[0] == '!' || arg[0] == '?' || arg[0] == '@') { // Flag
 				flag = arg;
