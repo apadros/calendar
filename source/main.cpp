@@ -47,7 +47,7 @@ struct date {
 
 // @EXPORT_API
 #include <time.h>
-date GetCurrentDate(si32 offsetDays) {
+date GetDate(si32 offsetDays) {
 	time_t timeNowSecs = time(NULL) + offsetDays * 24 * 60 * 60;
 	auto*  timeNow = localtime(&timeNowSecs); // UTC time
 	
@@ -72,11 +72,10 @@ short_string DateToString(date d) {
 	ret.string[7] = 'y';
 	ret.string[8] = 'y';
 	ret.string[9] = 'y';
-	ret.string[10] = '0';
+	ret.string[10] = '\0';
 	
-	auto date = GetCurrentDate(Null);
-	auto temp = ToString(date.day);
-	if(date.day <= 9) {
+	auto temp = ToString(d.day);
+	if(d.day <= 9) {
 		ret.string[0] = '0';
 		ret.string[1] = temp.string[0];
 	}
@@ -85,8 +84,8 @@ short_string DateToString(date d) {
 		ret.string[1] = temp.string[1];
 	}
 	
-	temp = ToString(date.month);
-	if(date.month <= 9) {
+	temp = ToString(d.month);
+	if(d.month <= 9) {
 		ret.string[3] = '0';
 		ret.string[4] = temp.string[0];
 	}
@@ -95,7 +94,7 @@ short_string DateToString(date d) {
 		ret.string[4] = temp.string[1];
 	}
 	
-	temp = ToString(date.year);
+	temp = ToString(d.year);
 	ret.string[6] = temp.string[0];
 	ret.string[7] = temp.string[1];
 	ret.string[8] = temp.string[2];
@@ -136,10 +135,10 @@ ConsoleAppEntryPoint(args, argsCount) {
 	Log("\n"); // Insert blank line for clarity
 	
 	#ifdef APAD_DEBUG
-		#if 1
+		#if 0
 		args[1] = "add";
-		args[2] = "hello";
-		args[3] = "+61";
+		args[2] = "new task";
+		args[3] = "01/10/2025";
 		args[4] = "+2";
 		argsCount = 5;	
 		#endif
@@ -174,20 +173,20 @@ ConsoleAppEntryPoint(args, argsCount) {
 	// 			   - Timestamp, ID, list of changes	
 		
 	const char* command = args[1];
-	if(StringsAreEqual(command, "add") == true) { // @TODO
+	if(StringsAreEqual(command, "add") == true) {
 	  // @TODO - If error, goto usage_msg
 		
 		const char* id = "0"; // @TODO - Generate
 		const char* task = Null;
-		      char  dateAdded[] = "dd/mm/yyyy\0"; // @TODO - Add, import from API when available
-					char  dateDue[] = "dd/mm/yyyy\0";
+		      char  dateAdded[] = "dd/mm/yyyy\0";
+					char  dateDue[GetArrayLength(dateAdded)] = "-\0";
 		const char* reschedulePeriod = Null;
 		const char* flag = Null;
 		const char* groups[MaxGroups] = { Null };
 		
 		// Date added 
 		{
-			auto date = GetCurrentDate(Null);
+			auto date = GetDate(Null);
 			auto string = DateToString(date);
 			auto length = GetStringLength(dateAdded, false);
 			ForAll(length)
@@ -198,7 +197,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 		FromTo(2, argsCount) {
 			const char* arg = args[it];
 			
-			if(arg[0] == '+' && dateDue[0] != 'd') { // Reschedule period
+			if(arg[0] == '+' && dateDue[0] != '-') { // Reschedule period
 				const char* number = arg + 1;
 				si32 				i = StringToInt(number);
 				reschedulePeriod = number;
@@ -208,7 +207,52 @@ ConsoleAppEntryPoint(args, argsCount) {
 			        StringsAreEqual(arg, "mon") || StringsAreEqual(arg, "tue") || StringsAreEqual(arg, "wed") || StringsAreEqual(arg, "thu") || 
 							StringsAreEqual(arg, "fri") || StringsAreEqual(arg, "sat") || StringsAreEqual(arg, "sun")) 
 			{
-				if(IsNumber(arg[0]) == true) { // Assumed dd/mm/yy or dd/mm/yyyy format. Convert to dd/mm/yyyy if needed
+				if(IsNumber(arg[0]) == true) { // Assumed dd/mm/yy or dd/mm/yyyy format. Convert to dd/mm/yyyy if needed @TODO
+				  // Accepted formats : dd/mm/yy or dd/mm/yyyy
+					auto length = GetStringLength(arg, false);
+					if(length != GetStringLength("dd/mm/yy", false) && length != GetStringLength("dd/mm/yyyy", false) &&
+					   arg[2] != '/' && arg[5] != '/') 
+					{
+						LogError("Wrong date due format\n");
+						goto usage_msg; // @TODO - More specific message?
+					}
+					
+					// Extract data
+					char dayString[] = { arg[0], arg[1], "\0" };
+					char monthString[] = { arg[3], arg[4], "\0" };
+					char yearString[] = { arg[6], arg[7], "yy\0" };
+					if(length == GetStringLength("dd/mm/yyyy", false)) {
+						yearString[2] = arg[8];
+						yearString[3] = arg[9];
+					}
+					auto day = StringToInt(dayString);
+					auto month = StringToInt(monthString);
+					auto year = StringToInt(yearString);
+					
+					// Sanity check
+					// @TODO - Check whether the date is real, e.g. 30th of feb
+					if(day < 0 || day > 31 || month < 0 || month > 12) {
+						LogError("Invalid date due\n");
+						goto usage_msg; // @TODO - More specific message?
+					}
+					
+					// Create dateDue
+					dateDue[0] = dayString[0];
+					dateDue[1] = dayString[1];
+					dateDue[2] = '/';
+					dateDue[3] = monthString[0];
+					dateDue[4] = monthString[1];
+					dateDue[5] = '/';
+					dateDue[6] = '2';
+					dateDue[7] = '0';
+					if(length == GetStringLength("dd/mm/yy", false)) {
+						dateDue[8] = yearString[0];
+						dateDue[9] = yearString[1];
+					}
+					else {
+						dateDue[8] = yearString[2];
+						dateDue[9] = yearString[3];
+					}
 				}
 				else if(arg[0] == '+') { // Offset from today
 				  const char* number = arg + 1;
@@ -221,11 +265,11 @@ ConsoleAppEntryPoint(args, argsCount) {
 						dateDue[3] = '\0';
 					}
 					else {
-						auto date = GetCurrentDate(i);
+						auto date = GetDate(i);
 						short_string string = DateToString(date);
 						auto length = GetStringLength(dateAdded, false);
 						ForAll(length)
-							dateAdded[it] = string.string[it];
+							dateDue[it] = string.string[it];
 					}
 				}
 				else { // Assumed to be a day of the week @TODO
@@ -249,7 +293,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 		
 		if(task == Null) {
 			LogError("No string specified.\n");
-			goto usage_msg;
+			goto usage_msg; // @TODO - More specific message?
 		}
 		
 	  Log("Task added\n");
@@ -287,7 +331,6 @@ ConsoleAppEntryPoint(args, argsCount) {
 			char c = data[it];
 			
 			if(c == '\n') { // Reset task data
-			  // @TODO - Finish task printing
 				PrintSingleTask(id, task, dateAdded, dateDue, reschedulePeriod, flag, groups);
 				
 				id = Null;
@@ -370,6 +413,8 @@ ConsoleAppEntryPoint(args, argsCount) {
 
   usage_msg:
 	Log("Usage: calendar [add] [list] [delete | del] [modify | mod] [reschedule | res] [undo] [redo]\n");
+	// @TODO - Add specific messages for individual commands? E.g. how does the user know the right format for the dates?
+	// @TODO - A git-like set of help messages for individual commands?
 			
 	program_exit:
 	if(IsValid(calendar) == true)
