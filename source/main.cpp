@@ -130,7 +130,7 @@ void PrintSingleTask(const char* id, const char* task, const char* dateAdded, co
 
 // Storage format
 // id(8 bit unsigned) task_text(string) date_added(dd/mm/yyyy) date_due_by(dd/mm/yyyy | -) reschedule_data(days | -) flag(! | ? | @ | -) groups(#id1 #id2 ... #id5)\r\n
-
+// @TODO - Allow dates in dd/mm format and +xw (work days)
 ConsoleAppEntryPoint(args, argsCount) {
 	Log("\n"); // Insert blank line for clarity
 	
@@ -208,50 +208,54 @@ ConsoleAppEntryPoint(args, argsCount) {
 							StringsAreEqual(arg, "fri") || StringsAreEqual(arg, "sat") || StringsAreEqual(arg, "sun")) 
 			{
 				if(IsNumber(arg[0]) == true) { // Assumed dd/mm/yy or dd/mm/yyyy format. Convert to dd/mm/yyyy if needed @TODO
-				  // Accepted formats : dd/mm/yy or dd/mm/yyyy
-					auto length = GetStringLength(arg, false);
-					if(length != GetStringLength("dd/mm/yy", false) && length != GetStringLength("dd/mm/yyyy", false) &&
-					   arg[2] != '/' && arg[5] != '/') 
-					{
+					auto argLength = GetStringLength(arg, false);
+						
+				  // Initial format check
+					// Accepted formats : dd/mm (year assumed to be current), dd/mm/yy or dd/mm/yyyy
+					if(!(argLength == GetStringLength("dd/mm", false) && arg[2] == '/' || (argLength == GetStringLength("dd/mm/yy", false) || argLength == GetStringLength("dd/mm/yyyy", false)) && arg[5] == '/')) {
 						LogError("Wrong date due format\n");
 						goto usage_msg; // @TODO - More specific message?
 					}
 					
-					// Extract data
-					char dayString[] = { arg[0], arg[1], "\0" };
-					char monthString[] = { arg[3], arg[4], "\0" };
-					char yearString[] = { arg[6], arg[7], "yy\0" };
-					if(length == GetStringLength("dd/mm/yyyy", false)) {
-						yearString[2] = arg[8];
-						yearString[3] = arg[9];
+					// If these both are false, the format is dd/mm
+					bool hasShortYear = argLength == GetStringLength("dd/mm/yy", false);
+					bool hasLongYear = argLength == GetStringLength("dd/mm/yyyy", false);
+					
+					// Copy into temp string omitting the forward slashes
+					char tempString[10] = { '\0' }; // Length of 10 to accomodate dd/mm/yyyy
+					ForAll(argLength) {
+						if(arg[it] != '/')
+							tempString[it] = arg[it];
 					}
-					auto day = StringToInt(dayString);
-					auto month = StringToInt(monthString);
-					auto year = StringToInt(yearString);
+					
+					auto day = StringToInt(tempString);
+					auto month = StringToInt(tempString + 3);
+					auto year = Null;
+					if(hasShortYear == true)
+						year = 2000 + StringToInt(arg + 6);
+					else if(hasLongYear == true)
+						year = StringToInt(arg + 6);
+					else 
+						year = GetDate(0).year;
 					
 					// Sanity check
 					// @TODO - Check whether the date is real, e.g. 30th of feb
-					if(day < 0 || day > 31 || month < 0 || month > 12) {
+					if(day < 0 || day > 31 || month < 0 || month > 12 || year < GetDate(0).year) {
 						LogError("Invalid date due\n");
 						goto usage_msg; // @TODO - More specific message?
 					}
 					
 					// Create dateDue
-					dateDue[0] = dayString[0];
-					dateDue[1] = dayString[1];
-					dateDue[2] = '/';
-					dateDue[3] = monthString[0];
-					dateDue[4] = monthString[1];
-					dateDue[5] = '/';
-					dateDue[6] = '2';
-					dateDue[7] = '0';
-					if(length == GetStringLength("dd/mm/yy", false)) {
-						dateDue[8] = yearString[0];
-						dateDue[9] = yearString[1];
-					}
-					else {
-						dateDue[8] = yearString[2];
-						dateDue[9] = yearString[3];
+					{
+						dateDue[0] = arg[0];
+						dateDue[1] = arg[1];
+						dateDue[2] = '/';
+						dateDue[3] = arg[3];
+						dateDue[4] = arg[4];
+						dateDue[5] = '/';
+						auto string = ToString(year);
+						ForAll(4)
+							dateDue[it + 6] = string.string[it];
 					}
 				}
 				else if(arg[0] == '+') { // Offset from today
