@@ -7,6 +7,7 @@
 #include "apad_base_types.h"
 #include "apad_error.h"
 #include "apad_file.h"
+#include "apad_intrinsics.h"
 #include "apad_string.h"
 #include "apad_win32.h"
 
@@ -14,6 +15,14 @@ const ui8 MaxGroups = 5;
 
 #define Log(_string) printf("%s\n", _string)
 #define LogError(_string) printf("ERROR - %s\n", _string)
+
+// @EXPORT_API apad_string.cpp
+void CopyString(const char* source, si16 srcLength, char* destination, ui16 destLength, bool copyEOS) {
+	auto realSourceLength = srcLength == -1 ? GetStringLength(source, true) : srcLength;
+	AssertRet(realSourceLength <= destLength);
+	ForAll(realSourceLength)
+	  destination[it] = source[it];
+}
 
 // @EXPORT_API apad_string.cpp
 bool IsLetter(char c) {
@@ -138,9 +147,9 @@ ConsoleAppEntryPoint(args, argsCount) {
 		#if 0
 		args[1] = "add";
 		args[2] = "new task";
-		args[3] = "01/10/2025";
-		args[4] = "+2";
-		argsCount = 5;	
+		args[3] = "+3";
+		// args[4] = "+2";
+		argsCount = 4;	
 		#endif
 	#endif
 	
@@ -259,21 +268,56 @@ ConsoleAppEntryPoint(args, argsCount) {
 					}
 				}
 				else if(arg[0] == '+') { // Offset from today
-				  const char* number = arg + 1;
-					si32 				i = StringToInt(number);
+				  auto argLength = GetStringLength(arg, false);
 					
-					if(i > 60) {
-						dateDue[0] = '>';
-						dateDue[1] = '6';
-						dateDue[2] = '0';
-						dateDue[3] = '\0';
+					// Allowed formats are +x, +xy, +xw, +xyw
+					// x and y indicate numbers, therefore offset has to be <= 2 long
+					// w indicates work days (optional)
+					
+					const ui8 maxLength = 4;
+					if(argLength > maxLength) { // Max length of +xy or +xyw for work days
+						LogError("Invalid date due\n");
+						goto usage_msg; // @TODO - More specific message
 					}
+						
+					// Copy the string excluding the + in front
+					const ui8 daysStringLength = maxLength - 1;
+				  char 			daysString[daysStringLength] = { '\0' };
+					CopyString(arg + 1, -1, daysString, daysStringLength, true);
+						
+					// If this is true, a 3-long offset was specified
+					if(daysString[daysStringLength - 1] != '\0' && daysString[daysStringLength - 1] != 'w') {
+						LogError("Invalid date due, max offset allowed is 2 digits.\n"); 
+						goto usage_msg; // @TODO - More specific message
+					}
+					
+					// Work days
+					bool workDays = false;
+					if(daysString[1] == 'w' || daysString[2] == 'w') {
+						workDays = true;
+						if(daysString[1] == 'w')
+							daysString[1] = '\0';
+						else
+							daysString[2] == 'w';
+				  }
+					
+					si32 days = StringToInt(daysString);
+					if(workDays == true) {
+						ui32 calendarDays = 0;
+						ForAll(days) {
+							calendarDays += 1;
+							while(GetDate(calendarDays).dayOfTheWeek >= 6) // Weekend
+								calendarDays += 1;
+						}
+						days = calendarDays;
+					}
+					
+					if(days > 60)
+						CopyString(">60", -1, dateDue, GetStringLength(dateDue, true), true);
 					else {
-						auto date = GetDate(i);
+						auto date = GetDate(days);
 						short_string string = DateToString(date);
-						auto length = GetStringLength(dateAdded, false);
-						ForAll(length)
-							dateDue[it] = string.string[it];
+						CopyString(string.string, -1, dateDue, sizeof(dateDue), true);
 					}
 				}
 				else { // Assumed to be a day of the week @TODO
