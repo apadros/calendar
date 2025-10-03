@@ -16,6 +16,8 @@ const ui8 MaxGroups = 5;
 #define Log(_string) printf("%s\n", _string)
 #define LogError(_string) printf("ERROR - %s\n", _string)
 
+#define GetMax(_a, _b) ((_a) > (_b) ? (_a) : (_b))
+
 // @EXPORT_API apad_string.cpp
 void CopyString(const char* source, si16 srcLength, char* destination, ui16 destLength, bool copyEOS) {
 	auto realSourceLength = srcLength == -1 ? GetStringLength(source, true) : srcLength;
@@ -70,18 +72,9 @@ date GetDate(si32 offsetDays) {
 
 // @EXPORT_API
 short_string DateToString(date d) {
+	const char* string = "dd/mm/yyyy";
 	short_string ret;
-	ret.string[0] = 'd';
-	ret.string[1] = 'd';
-	ret.string[2] = '/';
-	ret.string[3] = 'm';
-	ret.string[4] = 'm';
-	ret.string[5] = '/';
-	ret.string[6] = 'y';
-	ret.string[7] = 'y';
-	ret.string[8] = 'y';
-	ret.string[9] = 'y';
-	ret.string[10] = '\0';
+	CopyString(string, -1, ret.string, GetStringLength(string, true), true);
 	
 	auto temp = ToString(d.day);
 	if(d.day <= 9) {
@@ -112,7 +105,7 @@ short_string DateToString(date d) {
 	return ret;
 }
 
-void PrintSingleTask(const char* id, const char* task, const char* dateAdded, const char* dateDue, const char* reschedulePeriod, const char* flag, const char** groups) {
+void PrintDetailedTask(const char* id, const char* task, const char* dateAdded, const char* dateDue, const char* reschedulePeriod, const char* flag, const char** groups) {
   // @TODO - Add assertions once program takes shape
 	// AssertRet(id != Null);
 	// AssertRet(task != Null);
@@ -137,9 +130,113 @@ void PrintSingleTask(const char* id, const char* task, const char* dateAdded, co
 	}
 }
 
+// @TODO - PrintWideTask() - add support for a batch to to ascertain each colum length
+void PrintWideTask(const char* id, const char* task, const char* dateAdded, const char* dateDue, const char* reschedulePeriod, const char* flag, const char** groups) {
+	// @TODO - Add assertions once program takes shape
+	// AssertRet(id != Null);
+	// AssertRet(task != Null);
+	// AssertRet(dateAdded != Null);
+	// AssertRet(dateDue != Null);
+	// AssertRet(reschedulePeriod	!= Null);
+	// AssertRet(flag != Null);
+	// AssertRet(groups != Null);
+	
+	// Print header
+	
+	// Task ID column
+	printf("ID |");
+	ui8 totalHeaderLength = 4;
+	
+	// Task string column
+	ui16 taskLength = 0;
+	ui16 stringColumnLength = 0; // Without spaces
+	{
+	  const char* defaultString = "String";
+	  auto        defaultLength = GetStringLength(defaultString, false);
+								taskLength = GetStringLength(task, false);
+		auto        finalLength = GetMax(defaultLength, taskLength);
+		printf(" %s", defaultString);
+		ForAll(1 + finalLength - defaultLength) // +1 to allow for the initial whitespace
+			printf(" ");
+		printf("|");
+		totalHeaderLength += 1 + finalLength + 2;
+		
+		stringColumnLength = finalLength;
+	}
+	
+	// Date added
+	printf(" Date added |");
+	totalHeaderLength += GetStringLength(" Date added |", false);
+	
+	// Date due
+	ui16 dateDueColumnLength = 0;
+	{
+		const char* defaultString = "Date due";
+		printf(" %s", defaultString);
+		dateDueColumnLength = 1 + GetStringLength(defaultString, false);
+		
+		if(dateDue[0] == '-')
+		  printf(" |");
+	  else {
+			printf("   |");
+			dateDueColumnLength += 2; // 2 whitespaces before the last one and the separator
+		}
+		
+		totalHeaderLength += dateDueColumnLength + 2; // +2 for last whitespaces and | separator
+	}
+	
+	// @TODO - Reschedule period, flags & groups
+	
+	// Print separator
+	printf("\n");
+	ForAll(totalHeaderLength)
+	  printf("=");
+	printf("\n");
+	
+	// Task contents
+	printf("ID |"); // @TODO - Repleace once task ID gets implemented
+	printf(" %s", task);
+	ForAll(stringColumnLength - taskLength + 1) // +1 for last whitespace
+	  printf(" ");
+	printf("|");
+	
+	// Date added
+	printf(" %s |", dateAdded);
+	
+	// Date due
+	printf(" %s", dateDue);
+	ForAll(dateDueColumnLength - GetStringLength(dateDue, false))
+	  printf(" ");
+	printf("|");	
+	
+	// @TODO - Reschedule period, flags & groups
+	
+	#if 0
+	
+	// Print header @TODO - make into separate function once batch PrintWideTasks() is implemented
+	
+	printf("| Date added | Date due | Reschedule period | Flag | Groups\n", id);
+	printf("=========================================================\n", id); // @TODO	 - Adjust for task string length
+	printf("   | ", id); // @TODO - Repleace with task ID once implemented	
+	printf("%s", task);
+	ForAll(stringColumnLength - GetStringLength(task, false) - 1)
+		printf(" ");
+	printf("| %s |", dateAdded);
+	
+	printf("%s |", dateDue);
+	printf("%s |", reschedulePeriod);
+	printf("%s |", flag);
+	if(groups[0] != Null) { // Check if any groups present
+		ForAll(MaxGroups) {
+			if(groups[it] != Null)
+				printf("%s ", groups[it]);
+		}
+	}
+	#endif
+}
+
 // Storage format
 // id(8 bit unsigned) task_text(string) date_added(dd/mm/yyyy) date_due_by(dd/mm/yyyy | -) reschedule_data(days | -) flag(! | ? | @ | -) groups(#id1 #id2 ... #id5)\r\n
-// @TODO - Allow dates in dd/mm format and +xw (work days)
 ConsoleAppEntryPoint(args, argsCount) {
 	Log("\n"); // Insert blank line for clarity
 	
@@ -346,7 +443,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 		
 	  Log("Task added\n");
 		
-		PrintSingleTask(id, task, dateAdded, dateDue, reschedulePeriod, flag, groups);
+		PrintDetailedTask(id, task, dateAdded, dateDue, reschedulePeriod, flag, groups);
 		
 		// @TODO - Store in calendar.txt
 		
@@ -364,6 +461,16 @@ ConsoleAppEntryPoint(args, argsCount) {
 		// @TODO - search / list filters - view only task, id, all tasks from #group, etc
 		// 			 	- E.g. view only the groups of tasks due by x date
 		
+		// @TODO - Specify which info columns are wanted - -da (date added) -dd (date due) etc ?
+		
+		// Scan through remaining arguments
+		bool printDetailed = false;
+		FromTo(2, argsCount) {
+			const char* arg = args[it];
+			if(StringsAreEqual(arg, "-d") == true)
+				printDetailed = true;
+		}
+		
 		char*       data = (char*)calendar.memory;
 		const char* id = Null;
 		const char* task = Null;
@@ -379,7 +486,10 @@ ConsoleAppEntryPoint(args, argsCount) {
 			char c = data[it];
 			
 			if(c == '\n') { // Reset task data
-				PrintSingleTask(id, task, dateAdded, dateDue, reschedulePeriod, flag, groups);
+				if(printDetailed == true)
+					PrintDetailedTask(id, task, dateAdded, dateDue, reschedulePeriod, flag, groups);
+				else
+					PrintWideTask(id, task, dateAdded, dateDue, reschedulePeriod, flag, groups);
 				
 				id = Null;
 				task = Null;
@@ -450,6 +560,8 @@ ConsoleAppEntryPoint(args, argsCount) {
 	}
 	else if(StringsAreEqual(command, "redo") == true) { // @TODO
 	}
+	
+	goto program_exit;
 	
 	// @TODO - Parse file contents into a table / list of tasks and deadlines
 	
