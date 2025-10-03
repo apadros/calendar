@@ -130,8 +130,8 @@ void PrintDetailedTask(const char* id, const char* task, const char* dateAdded, 
 	}
 }
 
-// @TODO - PrintWideTask() - add support for a batch to to ascertain each colum length
-void PrintWideTask(const char* id, const char* task, const char* dateAdded, const char* dateDue, const char* reschedulePeriod, const char* flag, const char** groups) {
+// @TODO - PrintTaskWide() - add support for a batch to to ascertain each colum length
+void PrintTaskWide(const char* id, const char* task, const char* dateAdded, const char* dateDue, const char* reschedulePeriod, const char* flag, const char** groups) {
 	// @TODO - Add assertions once program takes shape
 	// AssertRet(id != Null);
 	// AssertRet(task != Null);
@@ -141,98 +141,54 @@ void PrintWideTask(const char* id, const char* task, const char* dateAdded, cons
 	// AssertRet(flag != Null);
 	// AssertRet(groups != Null);
 	
-	// Print header
+	const char* headers[] = { "ID", "String", "Added", "Due", "Reschedule", "Flag" }; // Groups implemented separately
+	const ui8   headersCount = GetArrayLength(headers);
+	const char* contents[] = { id, task, dateAdded, dateDue, reschedulePeriod, flag };
+	ui16        lengths[headersCount] = { };
+	FromTo(1, headersCount) {
+		const char* header = headers[it];
+		const char* content = "-";
+		if(contents[it] != Null)
+			content = contents[it];
+		
+		auto headerLength = GetStringLength(header, false);
+	  auto contentLength = GetStringLength(content, false);
+		
+	  lengths[it] = GetMax(headerLength, contentLength) + 2;
+	}
 	
-	// Task ID column
-	printf("ID |");
-	ui8 totalHeaderLength = 4;
-	
-	// Task string column
-	ui16 taskLength = 0;
-	ui16 stringColumnLength = 0; // Without spaces
-	{
-	  const char* defaultString = "String";
-	  auto        defaultLength = GetStringLength(defaultString, false);
-								taskLength = GetStringLength(task, false);
-		auto        finalLength = GetMax(defaultLength, taskLength);
-		printf(" %s", defaultString);
-		ForAll(1 + finalLength - defaultLength) // +1 to allow for the initial whitespace
-			printf(" ");
+	// Print headers
+	ForAll(headersCount) {
+		const char* header = headers[it];
+		const ui16 finalLength = lengths[it];
+		
+		printf(" %s ", header);
+		si16 printLength = finalLength - (GetStringLength(header, false) + 2);
+		if(printLength > 0) {
+			ForAll(printLength)
+				printf(" ");
+		}
 		printf("|");
-		totalHeaderLength += 1 + finalLength + 2;
-		
-		stringColumnLength = finalLength;
 	}
 	
-	// Date added
-	printf(" Date added |");
-	totalHeaderLength += GetStringLength(" Date added |", false);
-	
-	// Date due
-	ui16 dateDueColumnLength = 0;
-	{
-		const char* defaultString = "Date due";
-		printf(" %s", defaultString);
-		dateDueColumnLength = 1 + GetStringLength(defaultString, false);
-		
-		if(dateDue[0] == '-')
-		  printf(" |");
-	  else {
-			printf("   |");
-			dateDueColumnLength += 2; // 2 whitespaces before the last one and the separator
-		}
-		
-		totalHeaderLength += dateDueColumnLength + 2; // +2 for last whitespaces and | separator
-	}
-	
-	// @TODO - Reschedule period, flags & groups
-	
-	// Print separator
 	printf("\n");
-	ForAll(totalHeaderLength)
-	  printf("=");
-	printf("\n");
-	
-	// Task contents
-	printf("ID |"); // @TODO - Repleace once task ID gets implemented
-	printf(" %s", task);
-	ForAll(stringColumnLength - taskLength + 1) // +1 for last whitespace
-	  printf(" ");
-	printf("|");
-	
-	// Date added
-	printf(" %s |", dateAdded);
-	
-	// Date due
-	printf(" %s", dateDue);
-	ForAll(dateDueColumnLength - GetStringLength(dateDue, false))
-	  printf(" ");
-	printf("|");	
-	
-	// @TODO - Reschedule period, flags & groups
-	
-	#if 0
-	
-	// Print header @TODO - make into separate function once batch PrintWideTasks() is implemented
-	
-	printf("| Date added | Date due | Reschedule period | Flag | Groups\n", id);
-	printf("=========================================================\n", id); // @TODO	 - Adjust for task string length
-	printf("   | ", id); // @TODO - Repleace with task ID once implemented	
-	printf("%s", task);
-	ForAll(stringColumnLength - GetStringLength(task, false) - 1)
-		printf(" ");
-	printf("| %s |", dateAdded);
-	
-	printf("%s |", dateDue);
-	printf("%s |", reschedulePeriod);
-	printf("%s |", flag);
-	if(groups[0] != Null) { // Check if any groups present
-		ForAll(MaxGroups) {
-			if(groups[it] != Null)
-				printf("%s ", groups[it]);
+
+	// Print content
+	ForAll(headersCount) {
+		const char* content = "-";
+		if(contents[it] != Null)
+			content = contents[it];
+		const ui16 finalLength = lengths[it];
+		
+		printf(" %s ", content);
+		si16 printLength = finalLength - (GetStringLength(content, false) + 2);
+		if(printLength > 0) {
+			ForAll(printLength)
+				printf(" ");
 		}
+		// @TODO - A space is skipped at the very beginning, think because printLength is negative at the very start
+		printf("|");
 	}
-	#endif
 }
 
 // Storage format
@@ -489,7 +445,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 				if(printDetailed == true)
 					PrintDetailedTask(id, task, dateAdded, dateDue, reschedulePeriod, flag, groups);
 				else
-					PrintWideTask(id, task, dateAdded, dateDue, reschedulePeriod, flag, groups);
+					PrintTaskWide(id, task, dateAdded, dateDue, reschedulePeriod, flag, groups);
 				
 				id = Null;
 				task = Null;
