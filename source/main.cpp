@@ -115,6 +115,8 @@ void PrintDetailedTask(const char* id, const char* task, const char* dateAdded, 
 	// AssertRet(flag != Null);
 	// AssertRet(groups != Null);
 	
+	id = "-"; // @TODO - Update once IDs are implemented
+	
 	printf("ID:         %s\n", id);
 	printf("String:     %s\n", task);
 	printf("Date added: %s\n", dateAdded);
@@ -141,11 +143,15 @@ void PrintTaskWide(const char* id, const char* task, const char* dateAdded, cons
 	// AssertRet(flag != Null);
 	// AssertRet(groups != Null);
 	
+	// @TODO - Make it so dates which coincide with current year are displayed in dd/mm format
+	
+	id = Null; // @TODO - Update once IDs are implemented
+	
 	const char* headers[] = { "ID", "String", "Added", "Due", "Reschedule", "Flag" }; // Groups implemented separately
 	const ui8   headersCount = GetArrayLength(headers);
 	const char* contents[] = { id, task, dateAdded, dateDue, reschedulePeriod, flag };
 	ui16        lengths[headersCount] = { };
-	FromTo(1, headersCount) {
+	ForAll(headersCount) {
 		const char* header = headers[it];
 		const char* content = "-";
 		if(contents[it] != Null)
@@ -158,19 +164,36 @@ void PrintTaskWide(const char* id, const char* task, const char* dateAdded, cons
 	}
 	
 	// Print headers
+	ui16 totalHeadersLength = 0;
 	ForAll(headersCount) {
 		const char* header = headers[it];
-		const ui16 finalLength = lengths[it];
+		ui16 finalLength = lengths[it];
 		
 		printf(" %s ", header);
-		si16 printLength = finalLength - (GetStringLength(header, false) + 2);
+		ui16 headerLength = GetStringLength(header, false);
+		totalHeadersLength += 1 + headerLength + 1;
+		si16 printLength = finalLength - (headerLength + 2);
 		if(printLength > 0) {
-			ForAll(printLength)
+			ForAll(printLength) {
 				printf(" ");
+				totalHeadersLength += 1;
+			}
 		}
 		printf("|");
+		totalHeadersLength += 1;
 	}
 	
+	// Groups
+	{
+		const char* string = " Groups ";
+	  printf(string);
+	  totalHeadersLength += GetStringLength(string, false);
+	}
+	printf("\n");
+	
+	// Print separator
+	ForAll(totalHeadersLength)
+	  printf("=");
 	printf("\n");
 
 	// Print content
@@ -178,7 +201,7 @@ void PrintTaskWide(const char* id, const char* task, const char* dateAdded, cons
 		const char* content = "-";
 		if(contents[it] != Null)
 			content = contents[it];
-		const ui16 finalLength = lengths[it];
+		ui16 finalLength = lengths[it];
 		
 		printf(" %s ", content);
 		si16 printLength = finalLength - (GetStringLength(content, false) + 2);
@@ -186,8 +209,17 @@ void PrintTaskWide(const char* id, const char* task, const char* dateAdded, cons
 			ForAll(printLength)
 				printf(" ");
 		}
-		// @TODO - A space is skipped at the very beginning, think because printLength is negative at the very start
 		printf("|");
+	}
+	
+	// Groups
+	ForAll(MaxGroups) {
+		const char* group = groups[it];
+		if(group == Null)
+			continue;
+		if(it > 0)
+			printf(",");
+		printf(" %s", groups[it]);
 	}
 }
 
@@ -238,7 +270,6 @@ ConsoleAppEntryPoint(args, argsCount) {
 	if(StringsAreEqual(command, "add") == true) {
 	  // @TODO - If error, goto usage_msg
 		
-		const char* id = "0"; // @TODO - Generate
 		const char* task = Null;
 		      char  dateAdded[] = "dd/mm/yyyy\0";
 					char  dateDue[GetArrayLength(dateAdded)] = "-\0";
@@ -399,7 +430,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 		
 	  Log("Task added\n");
 		
-		PrintDetailedTask(id, task, dateAdded, dateDue, reschedulePeriod, flag, groups);
+		PrintDetailedTask(Null, task, dateAdded, dateDue, reschedulePeriod, flag, groups);
 		
 		// @TODO - Store in calendar.txt
 		
@@ -476,9 +507,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 			else if(scanningTaskString == false && toStore != Null && IsValidChar(c) == false) { // Finish scanning other data
 				data[it] = '\0';
 				
-				if(id == Null)
-					id = toStore;
-				else if(dateAdded == Null)
+				if(dateAdded == Null)
 					dateAdded = toStore;
 				else if(dateDue == Null)
 					dateDue = toStore;
