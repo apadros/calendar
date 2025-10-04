@@ -291,7 +291,26 @@ ConsoleAppEntryPoint(args, argsCount) {
 			const char* arg = args[it];
 			
 			if(arg[0] == '+' && dateDue[0] != '-') { // Reschedule period
-				const char* number = arg + 1;
+			  const char* number = arg + 1;
+				{
+					auto 			length = GetStringLength(number, false);
+					const ui8 MaxLength = 3;
+					if(length == 0 || length > MaxLength || IsNumber(number[0]) == false)
+						goto usage_msg;
+					
+					// @WIP
+					
+					bool gotoErrorMessage = length == 0;
+					ForAll(length) {
+					  gotoErrorMessage = IsNumber(number[it]) == false;
+						if(gotoErrorMessage == true)
+							break;
+					}
+					if(gotoErrorMessage == true)
+						goto usage_msg; // @TODO - Update with proper error message
+				}
+				
+				if(IsNumber(number
 				si32 				i = StringToInt(number);
 				reschedulePeriod = number;
 			}
