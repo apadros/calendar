@@ -10,218 +10,7 @@
 #include "apad_intrinsics.h"
 #include "apad_string.h"
 #include "apad_win32.h"
-
-const ui8 MaxGroups = 5;
-
-#define Log(_string) printf("%s\n", _string)
-#define LogError(_string) printf("ERROR - %s\n", _string)
-
-#define GetMax(_a, _b) ((_a) > (_b) ? (_a) : (_b))
-
-// @EXPORT_API apad_string.cpp
-void CopyString(const char* source, si16 srcLength, char* destination, ui16 destLength, bool copyEOS) {
-	auto realSourceLength = srcLength == -1 ? GetStringLength(source, true) : srcLength;
-	AssertRet(realSourceLength <= destLength);
-	ForAll(realSourceLength)
-	  destination[it] = source[it];
-}
-
-// @EXPORT_API apad_string.cpp
-bool IsLetter(char c) {
-	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z';
-}
-
-// @EXPORT_API apad_string.cpp
-bool IsNumber(char c) {
-	return c >= '0' && c <= '9';
-}
-
-// @EXPORT_API apad_string.cpp
-bool IsValidChar(char c) {
-  return IsLetter(c) == true || IsNumber(c) == true || c == '\"' || c == '/' || c == '-' || c == '?' || c == '!' || c == '#';
-}
-
-// @EXPORT_API apad_string.cpp
-#include <stdlib.h>
-si32 StringToInt(const char* string) {
-  AssertRet(string, Null);
-  return atoi(string);
-}
-
-// @EXPORT_API
-struct date {
-  ui8  dayOfTheWeek; // 1 -> 7
-  ui8  day; 				 // 1 -> 31
-  ui8  month; 			 // 1 -> 12
-  ui16 year;
-};
-
-// @EXPORT_API
-#include <time.h>
-date GetDate(si32 offsetDays) {
-	time_t timeNowSecs = time(NULL) + offsetDays * 24 * 60 * 60;
-	auto*  timeNow = localtime(&timeNowSecs); // UTC time
-	
-	date ret = {};
-	ret.dayOfTheWeek = timeNow->tm_wday == 0 ? 7 : timeNow->tm_wday;
-	ret.year = 1900 + timeNow->tm_year;
-	ret.month = 1 + timeNow->tm_mon;
-	ret.day = timeNow->tm_mday;
-	return ret;
-}
-
-// @EXPORT_API
-short_string DateToString(date d) {
-	const char* string = "dd/mm/yyyy";
-	short_string ret;
-	CopyString(string, -1, ret.string, GetStringLength(string, true), true);
-	
-	auto temp = ToString(d.day);
-	if(d.day <= 9) {
-		ret.string[0] = '0';
-		ret.string[1] = temp.string[0];
-	}
-	else {
-		ret.string[0] = temp.string[0];
-		ret.string[1] = temp.string[1];
-	}
-	
-	temp = ToString(d.month);
-	if(d.month <= 9) {
-		ret.string[3] = '0';
-		ret.string[4] = temp.string[0];
-	}
-	else {
-		ret.string[3] = temp.string[0];
-		ret.string[4] = temp.string[1];
-	}
-	
-	temp = ToString(d.year);
-	ret.string[6] = temp.string[0];
-	ret.string[7] = temp.string[1];
-	ret.string[8] = temp.string[2];
-	ret.string[9] = temp.string[3];
-	
-	return ret;
-}
-
-void PrintDetailedTask(const char* id, const char* task, const char* dateAdded, const char* dateDue, const char* reschedulePeriod, const char* flag, const char** groups) {
-  // @TODO - Add assertions once program takes shape
-	// AssertRet(id != Null);
-	// AssertRet(task != Null);
-	// AssertRet(dateAdded != Null);
-	// AssertRet(dateDue != Null);
-	// AssertRet(reschedulePeriod	!= Null);
-	// AssertRet(flag != Null);
-	// AssertRet(groups != Null);
-	
-	id = "-"; // @TODO - Update once IDs are implemented
-	
-	printf("ID:         %s\n", id);
-	printf("String:     %s\n", task);
-	printf("Date added: %s\n", dateAdded);
-	printf("Date due:   %s\n", dateDue);
-	printf("Reschedule: %s\n", reschedulePeriod);
-	printf("Flag:       %s\n", flag);
-	if(groups[0] != Null) { // Check if any groups present
-		printf("Groups:     %s\n", groups[0]);
-		FromTo(1, MaxGroups) {
-			if(groups[it] != Null)
-				printf("            %s\n", groups[it]);
-		}
-	}
-}
-
-// @TODO - PrintTaskWide() - add support for a batch to to ascertain each colum length
-void PrintTaskWide(const char* id, const char* task, const char* dateAdded, const char* dateDue, const char* reschedulePeriod, const char* flag, const char** groups) {
-	// @TODO - Add assertions once program takes shape
-	// AssertRet(id != Null);
-	// AssertRet(task != Null);
-	// AssertRet(dateAdded != Null);
-	// AssertRet(dateDue != Null);
-	// AssertRet(reschedulePeriod	!= Null);
-	// AssertRet(flag != Null);
-	// AssertRet(groups != Null);
-	
-	// @TODO - Make it so dates which coincide with current year are displayed in dd/mm format
-	
-	id = Null; // @TODO - Update once IDs are implemented
-	
-	const char* headers[] = { "ID", "String", "Added", "Due", "Reschedule", "Flag" }; // Groups implemented separately
-	const ui8   headersCount = GetArrayLength(headers);
-	const char* contents[] = { id, task, dateAdded, dateDue, reschedulePeriod, flag };
-	ui16        lengths[headersCount] = { };
-	ForAll(headersCount) {
-		const char* header = headers[it];
-		const char* content = "-";
-		if(contents[it] != Null)
-			content = contents[it];
-		
-		auto headerLength = GetStringLength(header, false);
-	  auto contentLength = GetStringLength(content, false);
-		
-	  lengths[it] = GetMax(headerLength, contentLength) + 2;
-	}
-	
-	// Print headers
-	ui16 totalHeadersLength = 0;
-	ForAll(headersCount) {
-		const char* header = headers[it];
-		ui16 finalLength = lengths[it];
-		
-		printf(" %s ", header);
-		ui16 headerLength = GetStringLength(header, false);
-		totalHeadersLength += 1 + headerLength + 1;
-		si16 printLength = finalLength - (headerLength + 2);
-		if(printLength > 0) {
-			ForAll(printLength) {
-				printf(" ");
-				totalHeadersLength += 1;
-			}
-		}
-		printf("|");
-		totalHeadersLength += 1;
-	}
-	
-	// Groups
-	{
-		const char* string = " Groups ";
-	  printf(string);
-	  totalHeadersLength += GetStringLength(string, false);
-	}
-	printf("\n");
-	
-	// Print separator
-	ForAll(totalHeadersLength)
-	  printf("=");
-	printf("\n");
-
-	// Print content
-	ForAll(headersCount) {
-		const char* content = "-";
-		if(contents[it] != Null)
-			content = contents[it];
-		ui16 finalLength = lengths[it];
-		
-		printf(" %s ", content);
-		si16 printLength = finalLength - (GetStringLength(content, false) + 2);
-		if(printLength > 0) {
-			ForAll(printLength)
-				printf(" ");
-		}
-		printf("|");
-	}
-	
-	// Groups
-	ForAll(MaxGroups) {
-		const char* group = groups[it];
-		if(group == Null)
-			continue;
-		if(it > 0)
-			printf(",");
-		printf(" %s", groups[it]);
-	}
-}
+#include "helpers.cpp"
 
 // Storage format
 // id(8 bit unsigned) task_text(string) date_added(dd/mm/yyyy) date_due_by(dd/mm/yyyy | -) reschedule_data(days | -) flag(! | ? | @ | -) groups(#id1 #id2 ... #id5)\r\n
@@ -290,38 +79,77 @@ ConsoleAppEntryPoint(args, argsCount) {
 		FromTo(2, argsCount) {
 			const char* arg = args[it];
 			
-			if(arg[0] == '+' && dateDue[0] != '-') { // Reschedule period
-			  const char* number = arg + 1;
+			if(arg[0] == '+') { // Day offset from today
+			  const char* daysString = arg + 1;
+				
+			  // Determine validity and whether work days have been specified
+				bool isValid = true;
+				bool workDays = false;
 				{
-					auto 			length = GetStringLength(number, false);
-					const ui8 MaxLength = 3;
-					if(length == 0 || length > MaxLength || IsNumber(number[0]) == false)
-						goto usage_msg;
+					const ui8 MaxDigits = 3;
 					
-					// @WIP
-					
-					bool gotoErrorMessage = length == 0;
-					ForAll(length) {
-					  gotoErrorMessage = IsNumber(number[it]) == false;
-						if(gotoErrorMessage == true)
-							break;
+					char* workDaysSub = (char*)FindSubstring("w", daysString);
+					if(workDaysSub != Null) {
+						workDays = true;
+						*workDaysSub = '\0';
 					}
-					if(gotoErrorMessage == true)
-						goto usage_msg; // @TODO - Update with proper error message
+					
+					auto length = GetStringLength(daysString, false);
+					if(length == 0 || length > MaxDigits)
+						isValid = false;
+					
+					ForAll(length) {
+						if(IsNumber(daysString[it]) == false)
+							isValid = false;
+					}
+				}
+			  if(isValid == false) {
+					LogError("Invalid day offset (max length allowed is 3)\n");
+				  goto program_exit;
 				}
 				
-				if(IsNumber(number
-				si32 				i = StringToInt(number);
-				reschedulePeriod = number;
+				ui16 calendarDays = 0;
+				{
+					si32 days = StringToInt(daysString);
+					if(workDays == true) {
+						ForAll(days) {
+							calendarDays += 1;
+							while(GetDate(calendarDays).dayOfTheWeek >= 6) // Weekend
+								calendarDays += 1;
+						}
+					}
+					else
+						calendarDays = days;
+				}				
+				
+				if(dateDue[0] != '-') { // Reschedule period @TODO - Allow work days
+					// si32 				i = StringToInt(number);
+					reschedulePeriod = daysString;
+				}
+				else { // Date due
+				  if(calendarDays > 60)
+						CopyString(">60", -1, dateDue, GetStringLength(dateDue, true), true);
+					else {
+						auto date = GetDate(calendarDays);
+						auto string = DateToString(date);
+						CopyString(string.string, -1, dateDue, sizeof(dateDue), true);
+					}
+				}
 			}
 			else if( // Date due
-			        IsNumber(arg[0]) == true || arg[0] == '.' || arg[0] == '+' || 
+			        IsNumber(arg[0]) == true || arg[0] == '.' ||
 			        StringsAreEqual(arg, "mon") || StringsAreEqual(arg, "tue") || StringsAreEqual(arg, "wed") || StringsAreEqual(arg, "thu") || 
 							StringsAreEqual(arg, "fri") || StringsAreEqual(arg, "sat") || StringsAreEqual(arg, "sun")) 
 			{
-				if(IsNumber(arg[0]) == true) { // Assumed dd/mm/yy or dd/mm/yyyy format. Convert to dd/mm/yyyy if needed @TODO
+				if(arg[0] == '.') { // Today
+				  auto date = GetDate(0);
+					auto string = DateToString(date);
+					
+					CopyString(string.string, -1, dateDue, GetArrayLength(dateDue), false);
+				}
+				else if(IsNumber(arg[0]) == true) { // Allowed formats are dd//mm, dd/mm/yy and dd/mm/yyyy
 					auto argLength = GetStringLength(arg, false);
-						
+											
 				  // Initial format check
 					// Accepted formats : dd/mm (year assumed to be current), dd/mm/yy or dd/mm/yyyy
 					if(!(argLength == GetStringLength("dd/mm", false) && arg[2] == '/' || (argLength == GetStringLength("dd/mm/yy", false) || argLength == GetStringLength("dd/mm/yyyy", false)) && arg[5] == '/')) {
@@ -353,7 +181,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 					// Sanity check
 					// @TODO - Check whether the date is real, e.g. 30th of feb
 					if(day < 0 || day > 31 || month < 0 || month > 12 || year < GetDate(0).year) {
-						LogError("Invalid date due\n");
+						LogError("Invalid due date\n");
 						goto usage_msg; // @TODO - More specific message?
 					}
 					
@@ -370,62 +198,9 @@ ConsoleAppEntryPoint(args, argsCount) {
 							dateDue[it + 6] = string.string[it];
 					}
 				}
-				else if(arg[0] == '+') { // Offset from today
-				  auto argLength = GetStringLength(arg, false);
-					
-					// Allowed formats are +x, +xy, +xw, +xyw
-					// x and y indicate numbers, therefore offset has to be <= 2 long
-					// w indicates work days (optional)
-					
-					const ui8 maxLength = 4;
-					if(argLength > maxLength) { // Max length of +xy or +xyw for work days
-						LogError("Invalid date due\n");
-						goto usage_msg; // @TODO - More specific message
-					}
-						
-					// Copy the string excluding the + in front
-					const ui8 daysStringLength = maxLength - 1;
-				  char 			daysString[daysStringLength] = { '\0' };
-					CopyString(arg + 1, -1, daysString, daysStringLength, true);
-						
-					// If this is true, a 3-long offset was specified
-					if(daysString[daysStringLength - 1] != '\0' && daysString[daysStringLength - 1] != 'w') {
-						LogError("Invalid date due, max offset allowed is 2 digits.\n"); 
-						goto usage_msg; // @TODO - More specific message
-					}
-					
-					// Work days
-					bool workDays = false;
-					if(daysString[1] == 'w' || daysString[2] == 'w') {
-						workDays = true;
-						if(daysString[1] == 'w')
-							daysString[1] = '\0';
-						else
-							daysString[2] == 'w';
-				  }
-					
-					si32 days = StringToInt(daysString);
-					if(workDays == true) {
-						ui32 calendarDays = 0;
-						ForAll(days) {
-							calendarDays += 1;
-							while(GetDate(calendarDays).dayOfTheWeek >= 6) // Weekend
-								calendarDays += 1;
-						}
-						days = calendarDays;
-					}
-					
-					if(days > 60)
-						CopyString(">60", -1, dateDue, GetStringLength(dateDue, true), true);
-					else {
-						auto date = GetDate(days);
-						short_string string = DateToString(date);
-						CopyString(string.string, -1, dateDue, sizeof(dateDue), true);
-					}
-				}
 				else { // Assumed to be a day of the week @TODO
-				}
 				
+				}
 			}
 			else if(arg[0] == '!' || arg[0] == '?' || arg[0] == '@') { // Flag
 				flag = arg;
