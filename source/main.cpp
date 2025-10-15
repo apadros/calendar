@@ -141,11 +141,15 @@ ConsoleAppEntryPoint(args, argsCount) {
 			        StringsAreEqual(arg, "mon") || StringsAreEqual(arg, "tue") || StringsAreEqual(arg, "wed") || StringsAreEqual(arg, "thu") || 
 							StringsAreEqual(arg, "fri") || StringsAreEqual(arg, "sat") || StringsAreEqual(arg, "sun")) 
 			{
+				bool dateDueSet = false;
+				
 				if(arg[0] == '.') { // Today
 				  auto date = GetDate(0);
 					auto string = DateToString(date);
 					
 					CopyString(string.string, -1, dateDue, GetArrayLength(dateDue), false);
+					
+					dateDueSet = true;
 				}
 				else if(IsNumber(arg[0]) == true) { // Allowed formats are dd//mm, dd/mm/yy and dd/mm/yyyy
 					auto argLength = GetStringLength(arg, false);
@@ -197,9 +201,38 @@ ConsoleAppEntryPoint(args, argsCount) {
 						ForAll(4)
 							dateDue[it + 6] = string.string[it];
 					}
+					
+					dateDueSet = true;
 				}
 				else { // Assumed to be a day of the week @TODO
+				  const char* days[] = { "mon", "tue", "wed", "thu", "fri", "sat", "sun" };
+					ui8 				daysLength = GetArrayLength(days);
+					
+					ui8 argDay = 0; // 1 -> 7 to match the date struct
+					ForAll(daysLength) {
+						if(StringsAreEqual(arg, days[it]) == true) {
+							argDay = it + 1;
+							break;
+						}
+					}
+					
+					if(argDay != 0) {
+						si8 offset = argDay - GetDate(0).dayOfTheWeek;
+						if(offset < 0)
+							offset += 7;
+						auto targetDate = GetDate(offset);
+						
+						auto string = DateToString(targetDate);
+						CopyString(string.string, -1, dateDue, GetArrayLength(dateDue), false);
+						
+						dateDueSet = true;
+					}
+				}
 				
+				// @TODO - Current problem is that any dateDueSet is useless since the arg will be treated as the task string.
+				if(dateDueSet == false) {
+					LogError("Invalid due date\n");
+					goto usage_msg; // @TODO - More specific message?
 				}
 			}
 			else if(arg[0] == '!' || arg[0] == '?' || arg[0] == '@') { // Flag

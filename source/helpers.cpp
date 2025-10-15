@@ -5,6 +5,10 @@ const ui8 MaxGroups = 5;
 #define Log(_string) printf("%s\n", _string)
 #define LogError(_string) printf("ERROR - %s\n", _string)
 
+// @EXPORT_API
+#define Magnitude(_x) ((_x) < 0 ? -(_x) : (_x))
+
+// @EXPORT_API
 #define GetMax(_a, _b) ((_a) > (_b) ? (_a) : (_b))
 
 // @EXPORT_API apad_string.cpp
