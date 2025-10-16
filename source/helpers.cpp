@@ -1,7 +1,5 @@
 #include "apad_base_types.h"
 
-const ui8 MaxGroups = 5;
-
 #define Log(_string) printf("%s\n", _string)
 #define LogError(_string) printf("ERROR - %s\n", _string)
 

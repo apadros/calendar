@@ -10,6 +10,13 @@
 #include "apad_intrinsics.h"
 #include "apad_string.h"
 #include "apad_win32.h"
+
+const char* DateFormatShort = "dd/mm";
+const char* DateFormatMedium = "dd/mm/yy";
+const char* DateFormatLong = "dd/mm/yyyy";
+const ui8 	MaxDateLength = 11; // DateFormatLong length + \0
+const ui8 	MaxGroups = 5;
+
 #include "helpers.cpp"
 
 // Storage format
@@ -21,7 +28,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 		#if 0
 		args[1] = "add";
 		args[2] = "new task";
-		args[3] = "+3";
+		args[3] = "mond";
 		// args[4] = "+2";
 		argsCount = 4;	
 		#endif
@@ -33,40 +40,182 @@ ConsoleAppEntryPoint(args, argsCount) {
 	const char* dataPath = "data/calendar.txt";
 	#endif 
 	
-	// Check existance of calendar.txt
 	if(FileExists(dataPath) == false) {
 		LogError("Couldn't find data/calendar.txt\n");
 		goto program_exit;
 	}
 	
-	// Load calendar.txt
 	auto calendar = LoadFile(dataPath);
 	if(ErrorIsSet() == true) {
 		LogError("Couldn't load data/calendar.txt");
 		goto program_exit;
 	}
 
-	// Parse command line arguments
 	if(argsCount < 2) {
 		LogError("No commands supplied.\n");
 		goto usage_msg;
 	}
+	
+	// @WIP - Parse arguments
+	const char* command = args[1];
+	const char* taskString = Null;
+	const char* reschedulePeriod = Null;
+	const char* flag = Null;
+	const char* groups[MaxGroups] = { Null };
+				char  targetDate[MaxDateLength] = "-\0";
+	FromTo(2, argsCount) {
+		const char* arg = args[it];
+					auto  argLength = GetStringLength(arg, false);
 		
+		if(arg[0] == '.') { // Set target date to today
+		  auto today = GetDate(0);
+			auto string = DateToString(today);
+			CopyString(string.string, -1, targetDate, MaxDateLength, false);
+		}
+		else if(arg[0] == '+') { // Day offset from today
+		  const char* daysString = arg + 1;
+			
+		  // Determine validity and whether work days have been specified
+			bool isValid = true;
+			bool workDays = false;
+			{
+				const ui8 MaxDigits = 3;
+				
+				char* workDaysSub = (char*)FindSubstring("w", daysString);
+				if(workDaysSub != Null) {
+					workDays = true;
+					*workDaysSub = '\0';
+				}
+				
+				auto length = GetStringLength(daysString, false);
+				if(length == 0 || length > MaxDigits)
+					isValid = false;
+				
+				ForAll(length) {
+					if(IsNumber(daysString[it]) == false)
+						isValid = false;
+				}
+			}
+		  if(isValid == false) {
+				LogError("Invalid day offset (max length allowed is 3)\n");
+			  goto program_exit;
+			}
+			
+			ui16 calendarDays = 0;
+			{
+				si32 days = StringToInt(daysString);
+				if(workDays == true) {
+					ForAll(days) {
+						calendarDays += 1;
+						while(GetDate(calendarDays).dayOfTheWeek >= 6) // Weekend
+							calendarDays += 1;
+					}
+				}
+				else
+					calendarDays = days;
+			}				
+			
+			if(targetDate[0] != '-') // Reschedule period @TODO - Allow work days
+				reschedulePeriod = daysString;
+			else { // Date due
+			  if(calendarDays > 60)
+					CopyString(">60", -1, targetDate, MaxDateLength, true);
+				else {
+					auto string = DateToString(GetDate(calendarDays));
+					CopyString(string.string, -1, targetDate, MaxDateLength, true);
+				}
+			}
+		} 
+		else if( // Specific next day of the week
+						StringsAreEqual(arg, "mon") == true || StringsAreEqual(arg, "tue") == true || StringsAreEqual(arg, "wed") == true || StringsAreEqual(arg, "thu") == true || 
+						StringsAreEqual(arg, "fri") == true || StringsAreEqual(arg, "sat") == true || StringsAreEqual(arg, "sun") == true)
+		{
+			ui8 argDay = 0; // 1 -> 7 to match the date struct
+			{
+				const char* days[] = { "mon", "tue", "wed", "thu", "fri", "sat", "sun" };
+				ForAll(7) {
+					if(StringsAreEqual(arg, days[it]) == true) {
+						argDay = it + 1;
+						break;
+					}
+				}
+			}
+			
+			si8 offset = argDay - GetDate(0).dayOfTheWeek;
+			if(offset < 0)
+				offset += 7;
+			
+			auto string = DateToString(GetDate(offset));
+			CopyString(string.string, -1, targetDate, MaxDateLength, false);
+		}
+		else if( // Target date specified in short, medium or long format
+						IsNumber(arg[0]) == true && (
+						(argLength == GetStringLength(DateFormatShort, false) && arg[2] == '/') || 
+						(argLength == GetStringLength(DateFormatMedium, false) && arg[2] == '/' && arg[5] == '/') || 
+						((argLength + 1) == MaxDateLength && arg[2] == '/' && arg[5] == '/') ))
+		{
+			auto argLength = GetStringLength(arg, false);
+									
+				// Initial format check
+			// Accepted formats : dd/mm (year assumed to be current), dd/mm/yy or dd/mm/yyyy
+			// if(!(argLength == GetStringLength("dd/mm", false) && arg[2] == '/' || (argLength == GetStringLength("dd/mm/yy", false) || argLength == GetStringLength("dd/mm/yyyy", false)) && arg[5] == '/')) {
+			// 	LogError("Wrong date due format\n");
+			// 	goto usage_msg; // @TODO - More specific message?
+			// }
+			
+			ui16 year = Null;
+			{
+				// If these both are false, the format is dd/mm
+				bool hasShortYear = argLength == GetStringLength(DateFormatMedium, false);
+				bool hasLongYear = argLength == GetStringLength(DateFormatLong, false);
+				
+				// Copy into temp string omitting the forward slashes
+				char tempString[10] = { '\0' }; // Length of 10 to accomodate dd/mm/yyyy
+				ForAll(argLength) {
+					if(arg[it] != '/')
+						tempString[it] = arg[it];
+				}
+				
+				ui8 day = StringToInt(tempString);
+				ui8 month = StringToInt(tempString + 3);
+				
+				if(hasShortYear == true)
+					year = 2000 + StringToInt(arg + 6);
+				else if(hasLongYear == true)
+					year = StringToInt(arg + 6);
+				else 
+					year = GetDate(0).year;
+				
+				// Sanity check
+				// @TODO - Check whether the date is real, e.g. 30th of feb
+				if(day < 0 || day > 31 || month < 0 || month > 12 || year < GetDate(0).year) {
+					LogError("Invalid target date\n");
+					goto usage_msg; // @TODO - More specific message?
+				}
+			}
+			
+			// Create target date
+			{
+				targetDate[0] = arg[0];
+				targetDate[1] = arg[1];
+				targetDate[2] = '/';
+				targetDate[3] = arg[3];
+				targetDate[4] = arg[4];
+				targetDate[5] = '/';
+				auto string = ToString(year);
+				ForAll(4)
+					targetDate[it + 6] = string.string[it];
+			}
+		}
+		else if(argLength == 1 && (arg[0] == '!' || arg[0] == '?' || arg[0] == '@')) // Flag
+			flag = arg;
+	}		
+	
 	// @TODO - Log file for the day
 	// 			   - Timestamp, ID, list of changes	
-		
-	const char* command = args[1];
+	
 	if(StringsAreEqual(command, "add") == true) {
-	  // @TODO - If error, goto usage_msg
-		
-		const char* task = Null;
-		      char  dateAdded[] = "dd/mm/yyyy\0";
-					char  dateDue[GetArrayLength(dateAdded)] = "-\0";
-		const char* reschedulePeriod = Null;
-		const char* flag = Null;
-		const char* groups[MaxGroups] = { Null };
-		
-		// Date added 
+	  char dateAdded[] = "dd/mm/yyyy\0";
 		{
 			auto date = GetDate(Null);
 			auto string = DateToString(date);
@@ -79,165 +228,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 		FromTo(2, argsCount) {
 			const char* arg = args[it];
 			
-			if(arg[0] == '+') { // Day offset from today
-			  const char* daysString = arg + 1;
-				
-			  // Determine validity and whether work days have been specified
-				bool isValid = true;
-				bool workDays = false;
-				{
-					const ui8 MaxDigits = 3;
-					
-					char* workDaysSub = (char*)FindSubstring("w", daysString);
-					if(workDaysSub != Null) {
-						workDays = true;
-						*workDaysSub = '\0';
-					}
-					
-					auto length = GetStringLength(daysString, false);
-					if(length == 0 || length > MaxDigits)
-						isValid = false;
-					
-					ForAll(length) {
-						if(IsNumber(daysString[it]) == false)
-							isValid = false;
-					}
-				}
-			  if(isValid == false) {
-					LogError("Invalid day offset (max length allowed is 3)\n");
-				  goto program_exit;
-				}
-				
-				ui16 calendarDays = 0;
-				{
-					si32 days = StringToInt(daysString);
-					if(workDays == true) {
-						ForAll(days) {
-							calendarDays += 1;
-							while(GetDate(calendarDays).dayOfTheWeek >= 6) // Weekend
-								calendarDays += 1;
-						}
-					}
-					else
-						calendarDays = days;
-				}				
-				
-				if(dateDue[0] != '-') { // Reschedule period @TODO - Allow work days
-					// si32 				i = StringToInt(number);
-					reschedulePeriod = daysString;
-				}
-				else { // Date due
-				  if(calendarDays > 60)
-						CopyString(">60", -1, dateDue, GetStringLength(dateDue, true), true);
-					else {
-						auto date = GetDate(calendarDays);
-						auto string = DateToString(date);
-						CopyString(string.string, -1, dateDue, sizeof(dateDue), true);
-					}
-				}
-			}
-			else if( // Date due
-			        IsNumber(arg[0]) == true || arg[0] == '.' ||
-			        StringsAreEqual(arg, "mon") || StringsAreEqual(arg, "tue") || StringsAreEqual(arg, "wed") || StringsAreEqual(arg, "thu") || 
-							StringsAreEqual(arg, "fri") || StringsAreEqual(arg, "sat") || StringsAreEqual(arg, "sun")) 
-			{
-				bool dateDueSet = false;
-				
-				if(arg[0] == '.') { // Today
-				  auto date = GetDate(0);
-					auto string = DateToString(date);
-					
-					CopyString(string.string, -1, dateDue, GetArrayLength(dateDue), false);
-					
-					dateDueSet = true;
-				}
-				else if(IsNumber(arg[0]) == true) { // Allowed formats are dd//mm, dd/mm/yy and dd/mm/yyyy
-					auto argLength = GetStringLength(arg, false);
-											
-				  // Initial format check
-					// Accepted formats : dd/mm (year assumed to be current), dd/mm/yy or dd/mm/yyyy
-					if(!(argLength == GetStringLength("dd/mm", false) && arg[2] == '/' || (argLength == GetStringLength("dd/mm/yy", false) || argLength == GetStringLength("dd/mm/yyyy", false)) && arg[5] == '/')) {
-						LogError("Wrong date due format\n");
-						goto usage_msg; // @TODO - More specific message?
-					}
-					
-					// If these both are false, the format is dd/mm
-					bool hasShortYear = argLength == GetStringLength("dd/mm/yy", false);
-					bool hasLongYear = argLength == GetStringLength("dd/mm/yyyy", false);
-					
-					// Copy into temp string omitting the forward slashes
-					char tempString[10] = { '\0' }; // Length of 10 to accomodate dd/mm/yyyy
-					ForAll(argLength) {
-						if(arg[it] != '/')
-							tempString[it] = arg[it];
-					}
-					
-					auto day = StringToInt(tempString);
-					auto month = StringToInt(tempString + 3);
-					auto year = Null;
-					if(hasShortYear == true)
-						year = 2000 + StringToInt(arg + 6);
-					else if(hasLongYear == true)
-						year = StringToInt(arg + 6);
-					else 
-						year = GetDate(0).year;
-					
-					// Sanity check
-					// @TODO - Check whether the date is real, e.g. 30th of feb
-					if(day < 0 || day > 31 || month < 0 || month > 12 || year < GetDate(0).year) {
-						LogError("Invalid due date\n");
-						goto usage_msg; // @TODO - More specific message?
-					}
-					
-					// Create dateDue
-					{
-						dateDue[0] = arg[0];
-						dateDue[1] = arg[1];
-						dateDue[2] = '/';
-						dateDue[3] = arg[3];
-						dateDue[4] = arg[4];
-						dateDue[5] = '/';
-						auto string = ToString(year);
-						ForAll(4)
-							dateDue[it + 6] = string.string[it];
-					}
-					
-					dateDueSet = true;
-				}
-				else { // Assumed to be a day of the week @TODO
-				  const char* days[] = { "mon", "tue", "wed", "thu", "fri", "sat", "sun" };
-					ui8 				daysLength = GetArrayLength(days);
-					
-					ui8 argDay = 0; // 1 -> 7 to match the date struct
-					ForAll(daysLength) {
-						if(StringsAreEqual(arg, days[it]) == true) {
-							argDay = it + 1;
-							break;
-						}
-					}
-					
-					if(argDay != 0) {
-						si8 offset = argDay - GetDate(0).dayOfTheWeek;
-						if(offset < 0)
-							offset += 7;
-						auto targetDate = GetDate(offset);
-						
-						auto string = DateToString(targetDate);
-						CopyString(string.string, -1, dateDue, GetArrayLength(dateDue), false);
-						
-						dateDueSet = true;
-					}
-				}
-				
-				// @TODO - Current problem is that any dateDueSet is useless since the arg will be treated as the task string.
-				if(dateDueSet == false) {
-					LogError("Invalid due date\n");
-					goto usage_msg; // @TODO - More specific message?
-				}
-			}
-			else if(arg[0] == '!' || arg[0] == '?' || arg[0] == '@') { // Flag
-				flag = arg;
-			}
+			
 			else if(arg[0] == '#') { // Group
 				ForAll(MaxGroups) {
 					if(groups[it] == Null) {
@@ -246,7 +237,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 					}
 				}
 			}
-			else // If none of the above it is considered to be an entry string. The " is not carried as part of the argument
+			else if(task == Null) // If none of the above it is considered to be an entry string only if Null. The " is not carried as part of the argument.
 				task = arg;
 		}
 		
@@ -371,6 +362,10 @@ ConsoleAppEntryPoint(args, argsCount) {
 	else if(StringsAreEqual(command, "undo") == true) { // @TODO
 	}
 	else if(StringsAreEqual(command, "redo") == true) { // @TODO
+	}
+	else {
+		LogError("Invalid command supplied.\n");
+		goto usage_msg;
 	}
 	
 	goto program_exit;
