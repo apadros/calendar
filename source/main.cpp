@@ -56,13 +56,15 @@ ConsoleAppEntryPoint(args, argsCount) {
 		goto usage_msg;
 	}
 	
-	// @WIP - Parse arguments
+	// Parse arguments and check their validities
+	// @TODO - List discarded arguments - any argument which isn't assigned
 	const char* command = args[1];
 	const char* taskString = Null;
 	const char* reschedulePeriod = Null;
 	const char* flag = Null;
 	const char* groups[MaxGroups] = { Null };
 				char  targetDate[MaxDateLength] = "-\0";
+	// @TODO - Dynamic allocation of an array to contains all discarded arguments
 	FromTo(2, argsCount) {
 		const char* arg = args[it];
 					auto  argLength = GetStringLength(arg, false);
@@ -209,11 +211,33 @@ ConsoleAppEntryPoint(args, argsCount) {
 		}
 		else if(argLength == 1 && (arg[0] == '!' || arg[0] == '?' || arg[0] == '@')) // Flag
 			flag = arg;
+		else if(arg[0] == '#') { // Group
+			ForAll(MaxGroups) {
+				if(groups[it] == Null) {
+					groups[it] = arg;
+					break;
+				}
+			}
+		}
+		else if(taskString == Null) // If none of the above it is considered to be an entry string only if Null. The " is not carried as part of the argument.
+			taskString = arg;
 	}		
 	
+	// Check minimum required arguments have been supplied
+	// Command validity checked further down
+	if(taskString == Null) {
+		LogError("No task string specified.\n");
+		goto usage_msg;
+	}
+	else if(targetDate[0] == '-'){
+		LogError("No target date specified.\n");
+		goto usage_msg;
+	}
+		
 	// @TODO - Log file for the day
 	// 			   - Timestamp, ID, list of changes	
 	
+	// Parse command, output error message if invalid
 	if(StringsAreEqual(command, "add") == true) {
 	  char dateAdded[] = "dd/mm/yyyy\0";
 		{
@@ -224,31 +248,9 @@ ConsoleAppEntryPoint(args, argsCount) {
 				dateAdded[it] = string.string[it];
 		}
 		
-		// Scan through remaining arguments
-		FromTo(2, argsCount) {
-			const char* arg = args[it];
-			
-			
-			else if(arg[0] == '#') { // Group
-				ForAll(MaxGroups) {
-					if(groups[it] == Null) {
-						groups[it] = arg;
-						break;
-					}
-				}
-			}
-			else if(task == Null) // If none of the above it is considered to be an entry string only if Null. The " is not carried as part of the argument.
-				task = arg;
-		}
+		Log("Task added\n");
 		
-		if(task == Null) {
-			LogError("No string specified.\n");
-			goto usage_msg; // @TODO - More specific message?
-		}
-		
-	  Log("Task added\n");
-		
-		PrintDetailedTask(Null, task, dateAdded, dateDue, reschedulePeriod, flag, groups);
+		PrintDetailedTask(Null, taskString, dateAdded, targetDate, reschedulePeriod, flag, groups);
 		
 		// @TODO - Store in calendar.txt
 		
@@ -346,9 +348,9 @@ ConsoleAppEntryPoint(args, argsCount) {
 			}
 		}
 	}
-	else if(StringsAreEqual(command, "delete") == true) { // @TODO
+	else if(StringsAreEqual(command, "del") == true) { // Delete - @TODO
 	}
-	else if(StringsAreEqual(command, "modify") == true) { // @TODO
+	else if(StringsAreEqual(command, "mod") == true) { // Modify - @TODO
 		// @TODO
 		// Print the details which have been updated, followed by the entire task data
 		// - E.g. Task ID / flag / group updated
@@ -357,7 +359,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 		// before and after, then display the updated entry will all info
 
 	}
-	else if(StringsAreEqual(command, "reschedule") == true) { // @TODO
+	else if(StringsAreEqual(command, "resc") == true) { // Reschedule @TODO
 	}
 	else if(StringsAreEqual(command, "undo") == true) { // @TODO
 	}

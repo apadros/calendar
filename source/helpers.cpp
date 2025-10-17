@@ -106,6 +106,10 @@ void PrintDetailedTask(const char* id, const char* task, const char* dateAdded, 
 	// AssertRet(groups != Null);
 	
 	id = "-"; // @TODO - Update once IDs are implemented
+	if(reschedulePeriod == Null)
+		reschedulePeriod = "-";
+	if(flag == Null)
+		flag = "-";
 	
 	printf("ID:         %s\n", id);
 	printf("String:     %s\n", task);
@@ -113,11 +117,14 @@ void PrintDetailedTask(const char* id, const char* task, const char* dateAdded, 
 	printf("Date due:   %s\n", dateDue);
 	printf("Reschedule: %s\n", reschedulePeriod);
 	printf("Flag:       %s\n", flag);
-	if(groups[0] != Null) { // Check if any groups present
-		printf("Groups:     %s\n", groups[0]);
+	printf("Groups:     ");
+	if(groups[0] == Null) // If no groups supplied
+		printf("-\n");
+	else { 
+		printf("%s\n", groups[0] + 1);
 		FromTo(1, MaxGroups) {
 			if(groups[it] != Null)
-				printf("            %s\n", groups[it]);
+				printf("            %s\n", groups[it] + 1); // +1 to skip the #
 		}
 	}
 }
