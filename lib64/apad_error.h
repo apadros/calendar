@@ -20,29 +20,63 @@ imported_function void 				SetError(const char* string);
 
 // ******************** Assertions ******************** //
 
+// Assert()
 #include <intrin.h> // For __debugbreak()
 #ifdef APAD_DEBUG
 
+// Will break into the debugger in debug mode and stop and exit program execution in release mode
 #define Assert(_condition) { \
   if(!(_condition)) \
-		__debugbreak(); /* This will stop and exit program execution in release mode */ \
+		__debugbreak(); \
 }
 
-#define AssertRet(_condition, _retValue) \
-	Assert(_condition)
-
 #else
-	
+
+// If IsExitIfErrorSet() == true, will exit program execution. Otherwise, need to 
+// manually check afterwards for errors and manually decide execution from there.
+// IsExitIfErrorSet() == false by default.
+#include <stdio.h> // For sprintf
 #define Assert(_condition) { \
   ClearError(); \
   if(!(_condition)) { \
-		SetError("ERROR - " ## #_condition ## ", file " ## __FILE__); \
+	  char buffer[256] = {}; \
+		sprintf(buffer, "Assertion failed \
+										 \nCondition - %s, \
+										 \nFile      - %s, \
+										 \nLine      - %lu", #_condition, __FILE__, __LINE__); \
+		SetError((const char*)buffer); \
 		if(IsExitIfErrorSet() == true) \
 		  ExitProgram(true); \
 	} \
 }
+
+#endif
+
+// AssertRet()
+#ifdef APAD_DEBUG
+
+#define AssertRet(_condition) \
+	Assert(_condition)
+
+#else
 	
-#define AssertRet(_condition, _retValue) { \
+#define AssertRet(_condition) { \
+	Assert(_condition); \
+	if(ErrorIsSet() == true) \
+	  return; \
+}
+
+#endif
+
+// AssertRetType()
+#ifdef APAD_DEBUG
+
+#define AssertRetType(_condition, _retValue) \
+	Assert(_condition)
+
+#else
+	
+#define AssertRetType(_condition, _retValue) { \
 	Assert(_condition); \
 	if(ErrorIsSet() == true) \
 	  return (_retValue); \

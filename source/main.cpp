@@ -8,7 +8,10 @@
 #include "apad_error.h"
 #include "apad_file.h"
 #include "apad_intrinsics.h"
+#include "apad_logging.h"
+#include "apad_maths.h"
 #include "apad_string.h"
+#include "apad_time.h"
 #include "apad_win32.h"
 
 const char* DateFormatShort = "dd/mm";
@@ -22,7 +25,9 @@ const ui8 	MaxGroups = 5;
 // Storage format
 // id(8 bit unsigned) task_text(string) date_added(dd/mm/yyyy) date_due_by(dd/mm/yyyy | -) reschedule_data(days | -) flag(! | ? | @ | -) groups(#id1 #id2 ... #id5)\r\n
 ConsoleAppEntryPoint(args, argsCount) {
-	Log("\n"); // Insert blank line for clarity
+	auto logFile = OpenLogFile();
+	
+	Log(logFile, "\n"); // Insert blank line for clarity
 	
 	#ifdef APAD_DEBUG
 		#if 0
@@ -41,30 +46,29 @@ ConsoleAppEntryPoint(args, argsCount) {
 	#endif 
 	
 	if(FileExists(dataPath) == false) {
-		LogError("Couldn't find data/calendar.txt\n");
+		Log(logFile, "ERROR - Couldn't find data/calendar.txt\n");
 		goto program_exit;
 	}
 	
 	auto calendar = LoadFile(dataPath);
 	if(ErrorIsSet() == true) {
-		LogError("Couldn't load data/calendar.txt");
+		Log(logFile, "ERROR - Couldn't load data/calendar.txt");
 		goto program_exit;
 	}
 
 	if(argsCount < 2) {
-		LogError("No commands supplied.\n");
+		Log(logFile, "ERROR - No commands supplied.\n");
 		goto usage_msg;
 	}
 	
 	// Parse arguments and check their validities
-	// @TODO - List discarded arguments - any argument which isn't assigned
 	const char* command = args[1];
 	const char* taskString = Null;
 	const char* reschedulePeriod = Null;
 	const char* flag = Null;
 	const char* groups[MaxGroups] = { Null };
 				char  targetDate[MaxDateLength] = "-\0";
-	// @TODO - Dynamic allocation of an array to contains all discarded arguments
+	
 	FromTo(2, argsCount) {
 		const char* arg = args[it];
 					auto  argLength = GetStringLength(arg, false);
@@ -72,7 +76,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 		if(arg[0] == '.') { // Set target date to today
 		  auto today = GetDate(0);
 			auto string = DateToString(today);
-			CopyString(string.string, -1, targetDate, MaxDateLength, false);
+			CopyString(string, -1, targetDate, MaxDateLength, false);
 		}
 		else if(arg[0] == '+') { // Day offset from today
 		  const char* daysString = arg + 1;
@@ -99,7 +103,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 				}
 			}
 		  if(isValid == false) {
-				LogError("Invalid day offset (max length allowed is 3)\n");
+				Log(logFile, "ERROR - Invalid day offset (max length allowed is 3)\n");
 			  goto program_exit;
 			}
 			
@@ -124,7 +128,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 					CopyString(">60", -1, targetDate, MaxDateLength, true);
 				else {
 					auto string = DateToString(GetDate(calendarDays));
-					CopyString(string.string, -1, targetDate, MaxDateLength, true);
+					CopyString(string, -1, targetDate, MaxDateLength, true);
 				}
 			}
 		} 
@@ -148,7 +152,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 				offset += 7;
 			
 			auto string = DateToString(GetDate(offset));
-			CopyString(string.string, -1, targetDate, MaxDateLength, false);
+			CopyString(string, -1, targetDate, MaxDateLength, false);
 		}
 		else if( // Target date specified in short, medium or long format
 						IsNumber(arg[0]) == true && (
@@ -157,13 +161,6 @@ ConsoleAppEntryPoint(args, argsCount) {
 						((argLength + 1) == MaxDateLength && arg[2] == '/' && arg[5] == '/') ))
 		{
 			auto argLength = GetStringLength(arg, false);
-									
-				// Initial format check
-			// Accepted formats : dd/mm (year assumed to be current), dd/mm/yy or dd/mm/yyyy
-			// if(!(argLength == GetStringLength("dd/mm", false) && arg[2] == '/' || (argLength == GetStringLength("dd/mm/yy", false) || argLength == GetStringLength("dd/mm/yyyy", false)) && arg[5] == '/')) {
-			// 	LogError("Wrong date due format\n");
-			// 	goto usage_msg; // @TODO - More specific message?
-			// }
 			
 			ui16 year = Null;
 			{
@@ -191,7 +188,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 				// Sanity check
 				// @TODO - Check whether the date is real, e.g. 30th of feb
 				if(day < 0 || day > 31 || month < 0 || month > 12 || year < GetDate(0).year) {
-					LogError("Invalid target date\n");
+					Log(logFile, "ERROR - Invalid target date\n");
 					goto usage_msg; // @TODO - More specific message?
 				}
 			}
@@ -206,7 +203,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 				targetDate[5] = '/';
 				auto string = ToString(year);
 				ForAll(4)
-					targetDate[it + 6] = string.string[it];
+					targetDate[it + 6] = string[it];
 			}
 		}
 		else if(argLength == 1 && (arg[0] == '!' || arg[0] == '?' || arg[0] == '@')) // Flag
@@ -221,16 +218,20 @@ ConsoleAppEntryPoint(args, argsCount) {
 		}
 		else if(taskString == Null) // If none of the above it is considered to be an entry string only if Null. The " is not carried as part of the argument.
 			taskString = arg;
+		else { // Invalid argument
+			printf("ERROR: Invalid argument: %s\n\n", arg);
+			goto usage_msg;
+		}
 	}		
 	
 	// Check minimum required arguments have been supplied
 	// Command validity checked further down
 	if(taskString == Null) {
-		LogError("No task string specified.\n");
+		Log(logFile, "ERROR - No task string specified.\n");
 		goto usage_msg;
 	}
 	else if(targetDate[0] == '-'){
-		LogError("No target date specified.\n");
+		Log(logFile, "ERROR - No target date specified.\n");
 		goto usage_msg;
 	}
 		
@@ -245,10 +246,10 @@ ConsoleAppEntryPoint(args, argsCount) {
 			auto string = DateToString(date);
 			auto length = GetStringLength(dateAdded, false);
 			ForAll(length)
-				dateAdded[it] = string.string[it];
+				dateAdded[it] = string[it];
 		}
 		
-		Log("Task added\n");
+		Log(logFile, "Task added\n");
 		
 		PrintDetailedTask(Null, taskString, dateAdded, targetDate, reschedulePeriod, flag, groups);
 		
@@ -308,7 +309,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 				ForAll(MaxGroups)
 					groups[it] = Null;
 					
-				Log("\n");
+				Log(logFile, "\n");
 			}
 			else if(toStore == Null && IsValidChar(c) == true) {
 				if(c == '\"') { // Beginning of the task string
@@ -366,7 +367,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 	else if(StringsAreEqual(command, "redo") == true) { // @TODO
 	}
 	else {
-		LogError("Invalid command supplied.\n");
+		Log(logFile, "ERROR - Invalid command supplied.\n");
 		goto usage_msg;
 	}
 	
@@ -381,13 +382,17 @@ ConsoleAppEntryPoint(args, argsCount) {
 	//
 
   usage_msg:
-	Log("Usage: calendar [add] [list] [delete | del] [modify | mod] [reschedule | res] [undo] [redo]\n");
+	Log(logFile, "Usage: calendar [add] [list] [delete | del] [modify | mod] [reschedule | res] [undo] [redo]\n");
 	// @TODO - Add specific messages for individual commands? E.g. how does the user know the right format for the dates?
 	// @TODO - A git-like set of help messages for individual commands?
 			
 	program_exit:
 	if(IsValid(calendar) == true)
 		FreeFile(calendar);
+	
+	printf("%s\n", (const char*)logFile.memory);
+	CloseLogFile(logFile);
+
 	
 	return 0;
 }
