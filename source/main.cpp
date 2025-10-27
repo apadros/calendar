@@ -68,7 +68,6 @@ ConsoleAppEntryPoint(args, argsCount) {
 	const char* flag = Null;
 	const char* groups[MaxGroups] = { Null };
 				char  targetDate[MaxDateLength] = "-\0";
-	
 	FromTo(2, argsCount) {
 		const char* arg = args[it];
 					auto  argLength = GetStringLength(arg, false);
