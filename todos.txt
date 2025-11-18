@@ -1,5 +1,7 @@
 - Testbench / testbenches
 
+WIP	- Updating all code in main.cpp with new API stuff
+
 Dates
 	- -da : date added, -dd : date due switches
 	- <=[date] less than or equal to [date]

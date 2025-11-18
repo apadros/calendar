@@ -14,11 +14,10 @@
 #include "apad_time.h"
 #include "apad_win32.h"
 
-const char* DateFormatShort = "dd/mm";
-const char* DateFormatMedium = "dd/mm/yy";
-const char* DateFormatLong = "dd/mm/yyyy";
-const ui8 	MaxDateLength = 11; // DateFormatLong length + \0
-const ui8 	MaxGroups = 5;
+			string DateFormatShort = "dd/mm";
+			string DateFormatMedium = "dd/mm/yy";
+			string DateFormatLong = "dd/mm/yyyy";
+const ui8 	 MaxGroups = 5;
 
 #include "helpers.cpp"
 
@@ -39,9 +38,9 @@ ConsoleAppEntryPoint(args, argsCount) {
 	#endif
 	
 	#ifdef APAD_DEBUG
-	const char* dataPath = "../../data/calendar.txt";
+	string dataPath = "../../data/calendar.txt";
 	#else
-	const char* dataPath = "data/calendar.txt";
+	string dataPath = "data/calendar.txt";
 	#endif 
 	
 	if(FileExists(dataPath) == false) {
@@ -61,15 +60,14 @@ ConsoleAppEntryPoint(args, argsCount) {
 	}
 	
 	// Parse arguments and check their validities
-	const char* command = args[1];
-	const char* taskString = Null;
-	const char* reschedulePeriod = Null;
-	const char* flag = Null;
-	const char* groups[MaxGroups] = { Null };
-				char  targetDate[MaxDateLength] = "-\0";
+	string command = args[1];
+	string taskString = Null;
+	string reschedulePeriod = Null;
+	string flag = Null;
+	string groups[MaxGroups] = { Null };
+	string targetDate = DateFormatLong;
 	FromTo(2, argsCount) {
-		const char* arg = args[it];
-					auto  argLength = GetStringLength(arg, false);
+		string arg = args[it];
 		
 		if(arg[0] == '.') { // Set target date to today
 		  auto today = GetDate(0);
@@ -85,14 +83,13 @@ ConsoleAppEntryPoint(args, argsCount) {
 			{
 				const ui8 MaxDigits = 3;
 				
-				char* workDaysSub = (char*)FindSubstring("w", daysString);
-				if(workDaysSub != Null) {
+				string workDaysSub = FindSubstring("w", daysString);
+				if(workDaysSub.chars != Null) {
 					workDays = true;
-					*workDaysSub = '\0';
+					workDaysSub = '\0';
 				}
 				
-				auto length = GetStringLength(daysString, false);
-				if(length == 0 || length > MaxDigits)
+				if(daysString.length == 0 || daysString.length > MaxDigits)
 					isValid = false;
 				
 				ForAll(length) {
@@ -123,22 +120,23 @@ ConsoleAppEntryPoint(args, argsCount) {
 				reschedulePeriod = daysString;
 			else { // Date due
 			  if(calendarDays > 60)
-					CopyString(">60", -1, targetDate, MaxDateLength, true);
+					CopyString(">60", -1, targetDate, targetDate.length, true);
 				else {
-					auto string = DateToString(GetDate(calendarDays));
-					CopyString(string, -1, targetDate, MaxDateLength, true);
+					string s = DateToString(GetDate(calendarDays));
+					Assert(s.length == targetDate.length);
+					CopyString(s, -1, targetDate, targetDate.length, false);
 				}
 			}
 		} 
 		else if( // Specific next day of the week
-						StringsAreEqual(arg, "mon") == true || StringsAreEqual(arg, "tue") == true || StringsAreEqual(arg, "wed") == true || StringsAreEqual(arg, "thu") == true || 
-						StringsAreEqual(arg, "fri") == true || StringsAreEqual(arg, "sat") == true || StringsAreEqual(arg, "sun") == true)
+						arg == "mon" || arg == "tue" || arg == "wed" || arg == "thu" || 
+						arg == "fri" || arg == "sat" || arg == "sun")
 		{
 			ui8 argDay = 0; // 1 -> 7 to match the date struct
 			{
 				const char* days[] = { "mon", "tue", "wed", "thu", "fri", "sat", "sun" };
 				ForAll(7) {
-					if(StringsAreEqual(arg, days[it]) == true) {
+					if(arg == days[it]) {
 						argDay = it + 1;
 						break;
 					}
@@ -149,28 +147,29 @@ ConsoleAppEntryPoint(args, argsCount) {
 			if(offset < 0)
 				offset += 7;
 			
-			auto string = DateToString(GetDate(offset));
-			CopyString(string, -1, targetDate, MaxDateLength, false);
+			string s = DateToString(GetDate(offset));
+			Assert(s.length == targetDate.length);
+			CopyString(s, -1, targetDate, targetDate.length, false);
 		}
 		else if( // Target date specified in short, medium or long format
 						IsNumber(arg[0]) == true && (
-						(argLength == GetStringLength(DateFormatShort, false) && arg[2] == '/') || 
-						(argLength == GetStringLength(DateFormatMedium, false) && arg[2] == '/' && arg[5] == '/') || 
-						((argLength + 1) == MaxDateLength && arg[2] == '/' && arg[5] == '/') ))
+						(arg.length == DateFormatShort.length, false) && arg[2] == '/') || 
+						(arg.length == DateFormatMedium.length, false) && arg[2] == '/' && arg[5] == '/') || 
+						((arg.length + 1) == DateFormatLong.length && arg[2] == '/' && arg[5] == '/') ))
 		{
-			auto argLength = GetStringLength(arg, false);
-			
 			ui16 year = Null;
 			{
 				// If these both are false, the format is dd/mm
-				bool hasShortYear = argLength == GetStringLength(DateFormatMedium, false);
-				bool hasLongYear = argLength == GetStringLength(DateFormatLong, false);
+				bool hasShortYear = arg.length == DateFormatMedium.length;
+				bool hasLongYear = arg.length == DateFormatLong.length;
 				
 				// Copy into temp string omitting the forward slashes
-				char tempString[10] = { '\0' }; // Length of 10 to accomodate dd/mm/yyyy
-				ForAll(argLength) {
+				string tempString = DateFormatLong;
+				ForAll(arg.length) {
 					if(arg[it] != '/')
 						tempString[it] = arg[it];
+					else
+						tempString[it] = '\0';
 				}
 				
 				ui8 day = StringToInt(tempString);
@@ -204,7 +203,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 					targetDate[it + 6] = string[it];
 			}
 		}
-		else if(argLength == 1 && (arg[0] == '!' || arg[0] == '?' || arg[0] == '@')) // Flag
+		else if(arg.length == 1 && (arg[0] == '!' || arg[0] == '?' || arg[0] == '@')) // Flag
 			flag = arg;
 		else if(arg[0] == '#') { // Group
 			ForAll(MaxGroups) {
@@ -235,7 +234,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 	
 	// Parse command, output error message if invalid
 	if(StringsAreEqual(command, "add") == true) {
-	  char dateAdded[] = "dd/mm/yyyy\0";
+	  string dateAdded = DateFormatLong;
 		{
 			auto date = GetDate(Null);
 			auto string = DateToString(date);
