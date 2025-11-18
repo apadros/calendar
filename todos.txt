@@ -1,1 +1,23 @@
 - Testbench / testbenches
+
+Dates
+	- -da : date added, -dd : date due switches
+	- <=[date] less than or equal to [date]
+		- Same for <, >, >= etc
+		- Requires logic when filtering for dates
+	- . shorthand for today
+		- Could do <=., >=., etc
+	- Checking whether it actually exists. E.g. 30th February
+		
+Reschedule
+	- -resc / -r switch
+		
+Task file
+	- Format: /t[task text(string)] /da[date added(dd/mm/yyyy)] /dd[date due(dd/mm/yyyy | -)] /r[reschedule(days | -)] /f[flag(! | ? | @ | -)] /g[groups, up to 5]\r\n
+	- Saving changes to it
+	- Daily local backup at the start of the day?
+		- Limit to 10 days
+	
+Log file
+	- Changes made that day
+		- Timestamp, ID, list of changes	

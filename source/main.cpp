@@ -23,7 +23,6 @@ const ui8 	MaxGroups = 5;
 #include "helpers.cpp"
 
 // Storage format
-// id(8 bit unsigned) task_text(string) date_added(dd/mm/yyyy) date_due_by(dd/mm/yyyy | -) reschedule_data(days | -) flag(! | ? | @ | -) groups(#id1 #id2 ... #id5)\r\n
 ConsoleAppEntryPoint(args, argsCount) {
 	auto logFile = OpenLogFile();
 	
@@ -233,9 +232,6 @@ ConsoleAppEntryPoint(args, argsCount) {
 		Log(logFile, "ERROR - No target date specified.\n");
 		goto usage_msg;
 	}
-		
-	// @TODO - Log file for the day
-	// 			   - Timestamp, ID, list of changes	
 	
 	// Parse command, output error message if invalid
 	if(StringsAreEqual(command, "add") == true) {
@@ -372,14 +368,6 @@ ConsoleAppEntryPoint(args, argsCount) {
 	
 	goto program_exit;
 	
-	// @TODO - Parse file contents into a table / list of tasks and deadlines
-	
-	// @TODO - Save to data/calendar.txt
-	// @TODO - Daily local backup at the start of the day
-	// 			   - Limit to 10 max previous logs
-	//				 - Store with current date
-	//
-
   usage_msg:
 	Log(logFile, "Usage: calendar [add] [list] [delete | del] [modify | mod] [reschedule | res] [undo] [redo]\n");
 	// @TODO - Add specific messages for individual commands? E.g. how does the user know the right format for the dates?
