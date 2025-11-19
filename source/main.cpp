@@ -14,12 +14,15 @@
 #include "apad_time.h"
 #include "apad_win32.h"
 
-			string DateFormatShort = "dd/mm";
+			string DateFormatShort  = "dd/mm";
 			string DateFormatMedium = "dd/mm/yy";
-			string DateFormatLong = "dd/mm/yyyy";
+			string DateFormatLong   = "dd/mm/yyyy";
 const ui8 	 MaxGroups = 5;
 
 #include "helpers.cpp"
+
+string 		ValidCommands[] = 			 { "add", "list", "del", "resc", "mod", "undo", "redo" };
+BeginEnum(ValidCommandsIndex) { Add, List, Delete, Reschedule, Modify, Undo, Redo, Length } EndEnum(ValidCommandsIndex);
 
 // Storage format
 ConsoleAppEntryPoint(args, argsCount) {
@@ -59,23 +62,86 @@ ConsoleAppEntryPoint(args, argsCount) {
 		goto usage_msg;
 	}
 	
-	// Parse arguments and check their validities
-	string command = args[1];
-	string taskString = Null;
-	string reschedulePeriod = Null;
-	string flag = Null;
-	string groups[MaxGroups] = { Null };
-	string targetDate = DateFormatLong;
+	// Data to be parsed from arguments
+	string command;
+	string taskString;
+	string targetDate;
+	string reschedulePeriod;
+	string flag;
+	string groups[MaxGroups];
+
+	// Parse and check command
+	command = args[1];
+	{
+		bool found = false;
+		ForAll(ValidCommandsIndex::Length) {
+			if(command == ValidCommands[it]) {
+				found = true;
+				break;
+			}
+		}
+		
+		if(found == false) {
+			goto usage_msg;
+			// @TODO - More specific error message
+		}
+	}
+	
+	// Parse remaining arguments
 	FromTo(2, argsCount) {
 		string arg = args[it];
+		
+		if(arg == "-s") { // Task string
+			if(it + 1 < argsCount) {
+				it += 1;
+				taskString = args[it];
+				continue;
+			}
+			else {
+				printf("ERROR: Not enough arguments supplied\n\n", arg);
+				goto usage_msg;
+			}
+		}
+		else if(IsDate(arg) == true) {
+			if(targetDate.length == 0)
+				targetDate = arg;
+			else {
+				if(reschedulePeriod.length != 0) {
+					printf("ERROR: Reschedule period already supplied\n\n", arg);
+					goto usage_msg;
+				}
+				reschedulePeriod = arg;
+			}
+		}
+		else if(arg.length == 1) {
+			char c = arg[0];
+			if(c == '.') {
+				if(targetDate.length == 0)
+					targetDate = DateToString(GetDate(0));
+			  else {
+					printf("ERROR: Target date already supplied\n\n", arg);
+					goto usage_msg;
+				}
+			}
+			else if(c == '!') {
+			}
+			else if(c == '?') {
+			}
+			else if(c == '@') {
+			}
+			else {
+				printf("ERROR: Invalid flag supplied\n\n", arg);
+				goto usage_msg;
+			}
+		}
 		
 		if(arg[0] == '.') { // Set target date to today
 		  auto today = GetDate(0);
 			auto string = DateToString(today);
-			CopyString(string, -1, targetDate, MaxDateLength, false);
+			CopyString(string, -1, targetDate, targetDate.length, false);
 		}
 		else if(arg[0] == '+') { // Day offset from today
-		  const char* daysString = arg + 1;
+		  string daysString = arg + 1;
 			
 		  // Determine validity and whether work days have been specified
 			bool isValid = true;
@@ -92,7 +158,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 				if(daysString.length == 0 || daysString.length > MaxDigits)
 					isValid = false;
 				
-				ForAll(length) {
+				ForAll(daysString.length) {
 					if(IsNumber(daysString[it]) == false)
 						isValid = false;
 				}
@@ -153,8 +219,8 @@ ConsoleAppEntryPoint(args, argsCount) {
 		}
 		else if( // Target date specified in short, medium or long format
 						IsNumber(arg[0]) == true && (
-						(arg.length == DateFormatShort.length, false) && arg[2] == '/') || 
-						(arg.length == DateFormatMedium.length, false) && arg[2] == '/' && arg[5] == '/') || 
+						(arg.length == DateFormatShort.length && arg[2] == '/') || 
+						(arg.length == DateFormatMedium.length && arg[2] == '/' && arg[5] == '/') || 
 						((arg.length + 1) == DateFormatLong.length && arg[2] == '/' && arg[5] == '/') ))
 		{
 			ui16 year = Null;
@@ -233,7 +299,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 	}
 	
 	// Parse command, output error message if invalid
-	if(StringsAreEqual(command, "add") == true) {
+	if(command == "add") {
 	  string dateAdded = DateFormatLong;
 		{
 			auto date = GetDate(Null);
@@ -251,7 +317,8 @@ ConsoleAppEntryPoint(args, argsCount) {
 		
 		goto program_exit;
 	}
-	else if(StringsAreEqual(command, "list") == true) {
+	else if(command == "list") {
+		#if 0
 	  // @TODO
 		// By string, ID, flags & groups, - means not
 		// <60 days & >60 days
@@ -269,7 +336,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 		bool printDetailed = false;
 		FromTo(2, argsCount) {
 			const char* arg = args[it];
-			if(StringsAreEqual(arg, "-d") == true)
+			if(arg == "-d")
 				printDetailed = true;
 		}
 		
@@ -342,10 +409,11 @@ ConsoleAppEntryPoint(args, argsCount) {
 				toStore = Null;
 			}
 		}
+		#endif
 	}
-	else if(StringsAreEqual(command, "del") == true) { // Delete - @TODO
+	else if(command == "del") { // Delete - @TODO
 	}
-	else if(StringsAreEqual(command, "mod") == true) { // Modify - @TODO
+	else if(command == "mod") { // Modify - @TODO
 		// @TODO
 		// Print the details which have been updated, followed by the entire task data
 		// - E.g. Task ID / flag / group updated
@@ -354,11 +422,11 @@ ConsoleAppEntryPoint(args, argsCount) {
 		// before and after, then display the updated entry will all info
 
 	}
-	else if(StringsAreEqual(command, "resc") == true) { // Reschedule @TODO
+	else if(command == "resc") { // Reschedule @TODO
 	}
-	else if(StringsAreEqual(command, "undo") == true) { // @TODO
+	else if(command == "undo") { // @TODO
 	}
-	else if(StringsAreEqual(command, "redo") == true) { // @TODO
+	else if(command == "redo") { // @TODO
 	}
 	else {
 		Log(logFile, "ERROR - Invalid command supplied.\n");

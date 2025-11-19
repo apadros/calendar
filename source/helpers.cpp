@@ -2,7 +2,55 @@ bool IsValidChar(char c) {
   return IsLetter(c) == true || IsNumber(c) == true || c == '\"' || c == '/' || c == '-' || c == '?' || c == '!' || c == '#';
 }
 
-void PrintDetailedTask(const char* id, const char* task, const char* dateAdded, const char* dateDue, const char* reschedulePeriod, const char* flag, const char** groups) {
+// @EXPORT_API
+bool IsDate(const char* s) {
+	// string DateFormatShort  = "dd/mm";
+	// string DateFormatMedium = "dd/mm/yy";
+	// string DateFormatLong   = "dd/mm/yyyy";
+	
+	string date = s;
+	
+	if(date.length != DateFormatShort.length && date.length != DateFormatMedium.length && date.length != DateFormatLong.length)
+		return false;
+	
+	// Check day
+	{
+		if(date[2] != '/')
+			return false;
+		
+		date[2] = '\0';
+		auto day = StringToInt(date);
+		if(day < 0 || day > 31)
+			return false;
+	}
+	
+	// Check month
+	{
+		if(date.length >= DateFormatMedium.length) {
+			if(date[5] != '/')
+				return false;
+			date[5] = '\0';
+		}
+		
+		auto month = StringToInt(date.chars + 3);
+		if(month < 0 || month > 12)
+			return false;
+	}
+	
+	// Check year
+	if(date.length >= DateFormatMedium.length) {
+		auto year = StringToInt(date.chars + 6);
+		
+		if(date.length == DateFormatMedium.length && (year < 0 || year > 99))
+			return false;
+		if(date.length == DateFormatLong.length && (year < 0 || year > 2099))
+			return false;
+	}
+	
+	return true;
+}
+
+void PrintDetailedTask(const char* id, const char* task, const char* dateAdded, const char* dateDue, const char* reschedulePeriod, const char* flag, string* groups) {
   // @TODO - Add assertions once program takes shape
 	// AssertRet(id != Null);
 	// AssertRet(task != Null);
