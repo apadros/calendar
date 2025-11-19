@@ -102,7 +102,62 @@ ConsoleAppEntryPoint(args, argsCount) {
 				goto usage_msg;
 			}
 		}
-		else if(IsDate(arg) == true) {
+		else if(IsDate(arg) == true || (arg.length == 1 && arg[0] == '.') || (arg.length >= 2 && arg.length <= 4 && arg[0] == '+')) { // Date
+      date d;
+			
+			if(arg[0] == '.')
+				d = GetDate(0);
+			else if(arg[0] == '+') {
+				string daysString = arg + 1;
+				
+				// Determine validity and whether work days have been specified
+				bool isValid = true;
+				bool workDays = false;
+				{
+					const ui8 MaxDigits = 3;
+					
+					string workDaysSub = FindSubstring("w", daysString);
+					if(workDaysSub.chars != Null) {
+						workDays = true;
+						workDaysSub = '\0';
+					}
+					
+					if(daysString.length == 0 || daysString.length > MaxDigits)
+						isValid = false;
+					
+					ForAll(daysString.length) {
+						if(IsNumber(daysString[it]) == false)
+							isValid = false;
+					}
+				}
+				if(isValid == false) {
+					Log(logFile, "ERROR - Invalid day offset (max length allowed is 3)\n");
+					goto program_exit;
+				}
+				
+				ui16 calendarDays = 0;
+				{
+					si32 days = StringToInt(daysString);
+					if(workDays == true) {
+						ForAll(days) {
+							calendarDays += 1;
+							while(GetDate(calendarDays).dayOfTheWeek >= 6) // Weekend
+								calendarDays += 1;
+						}
+					}
+					else
+						calendarDays = days;
+				}
+				
+				d = GetDate(calendarDays);
+			}
+			else { // Convert date to string
+				
+				
+				
+			}
+		
+			
 			if(targetDate.length == 0)
 				targetDate = arg;
 			else {
@@ -141,81 +196,18 @@ ConsoleAppEntryPoint(args, argsCount) {
 			CopyString(string, -1, targetDate, targetDate.length, false);
 		}
 		else if(arg[0] == '+') { // Day offset from today
-		  string daysString = arg + 1;
+		  
+		  				
 			
-		  // Determine validity and whether work days have been specified
-			bool isValid = true;
-			bool workDays = false;
-			{
-				const ui8 MaxDigits = 3;
-				
-				string workDaysSub = FindSubstring("w", daysString);
-				if(workDaysSub.chars != Null) {
-					workDays = true;
-					workDaysSub = '\0';
-				}
-				
-				if(daysString.length == 0 || daysString.length > MaxDigits)
-					isValid = false;
-				
-				ForAll(daysString.length) {
-					if(IsNumber(daysString[it]) == false)
-						isValid = false;
-				}
-			}
-		  if(isValid == false) {
-				Log(logFile, "ERROR - Invalid day offset (max length allowed is 3)\n");
-			  goto program_exit;
-			}
-			
-			ui16 calendarDays = 0;
-			{
-				si32 days = StringToInt(daysString);
-				if(workDays == true) {
-					ForAll(days) {
-						calendarDays += 1;
-						while(GetDate(calendarDays).dayOfTheWeek >= 6) // Weekend
-							calendarDays += 1;
-					}
-				}
-				else
-					calendarDays = days;
-			}				
-			
-			if(targetDate[0] != '-') // Reschedule period @TODO - Allow work days
-				reschedulePeriod = daysString;
-			else { // Date due
-			  if(calendarDays > 60)
-					CopyString(">60", -1, targetDate, targetDate.length, true);
-				else {
-					string s = DateToString(GetDate(calendarDays));
-					Assert(s.length == targetDate.length);
-					CopyString(s, -1, targetDate, targetDate.length, false);
-				}
+			{ // Date due
+			  
 			}
 		} 
 		else if( // Specific next day of the week
 						arg == "mon" || arg == "tue" || arg == "wed" || arg == "thu" || 
 						arg == "fri" || arg == "sat" || arg == "sun")
 		{
-			ui8 argDay = 0; // 1 -> 7 to match the date struct
-			{
-				const char* days[] = { "mon", "tue", "wed", "thu", "fri", "sat", "sun" };
-				ForAll(7) {
-					if(arg == days[it]) {
-						argDay = it + 1;
-						break;
-					}
-				}
-			}
 			
-			si8 offset = argDay - GetDate(0).dayOfTheWeek;
-			if(offset < 0)
-				offset += 7;
-			
-			string s = DateToString(GetDate(offset));
-			Assert(s.length == targetDate.length);
-			CopyString(s, -1, targetDate, targetDate.length, false);
 		}
 		else if( // Target date specified in short, medium or long format
 						IsNumber(arg[0]) == true && (

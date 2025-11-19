@@ -3,12 +3,96 @@ bool IsValidChar(char c) {
 }
 
 // @EXPORT_API
+void ConvertStringToLowerCase(const char* s) {
+	auto length = GetStringLength(s, false);
+	ForAll(length) {
+    if(s[it] >= 'A' && s[it] <= 'Z')
+			s[it] += 'a' - 'A';
+	}
+}
+
+// @EXPORT_API
+date GetDate(const char* s) {
+	string dateString = s;
+	
+	ConvertStringToLowerCase(dateString);
+	if(dateString == "mon" || dateString == "tue" || dateString == "wed" || dateString == "thu" || 
+		 dateString == "fri" || dateString == "sat" || dateString == "sun")
+	{
+		ui8 argDay = 0; // 1 -> 7 to match the date struct
+		{
+			const char* days[] = { "mon", "tue", "wed", "thu", "fri", "sat", "sun" };
+			ForAll(7) {
+				if(arg == days[it]) {
+					argDay = it + 1;
+					break;
+				}
+			}
+		}
+		
+		si8 offset = argDay - GetDate(0).dayOfTheWeek;
+		if(offset < 0)
+			offset += 7;
+		
+		return GetDate(offset);
+	}
+	else {
+		ui8 day = 0;
+		ui8 month = 0;
+		ui16 year = 0;
+		
+		// Day
+		{
+			dateString[2] = '\0';
+			auto d = StringToInt(dateString);
+			AssertRetType(d >= 1 && d <= 31, date());
+			day = d;
+		}
+		
+		// Month
+		{
+			if(dateString.length >= DateFormatMedium.length)
+				dateString[5] = '\0';
+			
+			auto m = StringToInt(dateString.chars + 3);
+			Assert(m >= 1 && m <= 12)
+			month = m;
+		}
+		
+		// Year
+		if(dateString.length >= DateFormatMedium.length) {
+			auto y = StringToInt(dateString.chars + 6);
+			
+			auto currentYear = GetDate(0).year;
+			AssertRetType(y >= (currentYear - 2000) && y <= 99 || y >= currentYear && y <= 2099, date());
+			
+			if(y < 100)
+				y += 2000;
+			year = y;
+		}
+		
+		// @TODO - Create a tm struct, fill in day, month & year, convert to time_t with mktime(), then convert back.
+		// tm->wday should have been filled out.
+		
+	}
+	
+	Assert(false);
+	
+	return date();
+}
+
+// @EXPORT_API
 bool IsDate(const char* s) {
 	// string DateFormatShort  = "dd/mm";
 	// string DateFormatMedium = "dd/mm/yy";
 	// string DateFormatLong   = "dd/mm/yyyy";
 	
 	string date = s;
+	
+	ConvertStringToLowerCase(date);
+	if(date == "mon" || date == "tue" || date == "wed" || date == "thu" || 
+		 date == "fri" || date == "sat" || date == "sun")
+		 return true;
 	
 	if(date.length != DateFormatShort.length && date.length != DateFormatMedium.length && date.length != DateFormatLong.length)
 		return false;
@@ -46,6 +130,8 @@ bool IsDate(const char* s) {
 		if(date.length == DateFormatLong.length && (year < 0 || year > 2099))
 			return false;
 	}
+	
+	// @TODO - Check date viability e.g. 31st feb
 	
 	return true;
 }
