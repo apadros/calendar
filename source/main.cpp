@@ -17,7 +17,7 @@
 			string DateFormatShort  = "dd/mm";
 			string DateFormatMedium = "dd/mm/yy";
 			string DateFormatLong   = "dd/mm/yyyy";
-const ui8 	 MaxGroups = 5;
+const ui8 	 MaxTags = 5;
 
 #include "helpers.cpp"
 
@@ -68,7 +68,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 	string targetDate;
 	string reschedulePeriod;
 	string flag;
-	string groups[MaxGroups];
+	string tags[MaxTags];
 
 	// Parse and check command
 	command = args[1];
@@ -98,17 +98,21 @@ ConsoleAppEntryPoint(args, argsCount) {
 				continue;
 			}
 			else {
-				printf("ERROR: Not enough arguments supplied\n\n", arg);
+				printf("ERROR: Not enough arguments supplied\n\n");
 				goto usage_msg;
 			}
 		}
 		else if(IsDate(arg) == true || (arg.length == 1 && arg[0] == '.') || (arg.length >= 2 && arg.length <= 4 && arg[0] == '+')) { // Date
-      date d;
-			
-			if(arg[0] == '.')
-				d = GetDate(0);
+      if(arg[0] == '.') {
+				if(targetDate.length == 0)
+					targetDate = DateToString(GetDate(0));
+				else {
+					printf("ERROR: Target date already supplied: %s\n\n", arg);
+					goto usage_msg;
+				}
+			}
 			else if(arg[0] == '+') {
-				string daysString = arg + 1;
+				string daysString = arg.chars + 1;
 				
 				// Determine validity and whether work days have been specified
 				bool isValid = true;
@@ -116,8 +120,8 @@ ConsoleAppEntryPoint(args, argsCount) {
 				{
 					const ui8 MaxDigits = 3;
 					
-					string workDaysSub = FindSubstring("w", daysString);
-					if(workDaysSub.chars != Null) {
+					const char* workDaysSub = FindSubstring("w", daysString);
+					if(workDaysSub != Null) {
 						workDays = true;
 						workDaysSub = '\0';
 					}
@@ -135,144 +139,60 @@ ConsoleAppEntryPoint(args, argsCount) {
 					goto program_exit;
 				}
 				
-				ui16 calendarDays = 0;
-				{
-					si32 days = StringToInt(daysString);
-					if(workDays == true) {
-						ForAll(days) {
-							calendarDays += 1;
-							while(GetDate(calendarDays).dayOfTheWeek >= 6) // Weekend
+				if(targetDate.length == 0) {
+					ui16 calendarDays = 0;
+					{
+						si32 days = StringToInt(daysString);
+						if(workDays == true) {
+							ForAll(days) {
 								calendarDays += 1;
+								while(GetDate(calendarDays).dayOfTheWeek >= 6) // Weekend
+									calendarDays += 1;
+							}
 						}
+						else
+							calendarDays = days;
 					}
-					else
-						calendarDays = days;
+				
+					targetDate = GetDate(calendarDays);
 				}
-				
-				d = GetDate(calendarDays);
-			}
-			else { // Convert date to string
-				
-				
-				
-			}
-		
-			
-			if(targetDate.length == 0)
-				targetDate = arg;
-			else {
-				if(reschedulePeriod.length != 0) {
+				else if(reschedulePeriod.length == 0)
+					reschedulePeriod = arg.chars + 1;
+				else {
 					printf("ERROR: Reschedule period already supplied\n\n", arg);
 					goto usage_msg;
-				}
-				reschedulePeriod = arg;
+				}						
 			}
-		}
-		else if(arg.length == 1) {
-			char c = arg[0];
-			if(c == '.') {
+			else {
 				if(targetDate.length == 0)
-					targetDate = DateToString(GetDate(0));
-			  else {
+					targetDate = GetDate(arg);
+				else {
 					printf("ERROR: Target date already supplied\n\n", arg);
 					goto usage_msg;
 				}
 			}
-			else if(c == '!') {
-			}
-			else if(c == '?') {
-			}
-			else if(c == '@') {
-			}
+		}
+		else if(arg.length == 1) { // Flag
+			if(arg[0] == '!' || arg[0] == '?' || arg[0] == '@')
+				flag = arg;
 			else {
-				printf("ERROR: Invalid flag supplied\n\n", arg);
+				printf("ERROR: Invalid flag supplied: %s\n\n", arg);
 				goto usage_msg;
 			}
 		}
-		
-		if(arg[0] == '.') { // Set target date to today
-		  auto today = GetDate(0);
-			auto string = DateToString(today);
-			CopyString(string, -1, targetDate, targetDate.length, false);
-		}
-		else if(arg[0] == '+') { // Day offset from today
-		  
-		  				
-			
-			{ // Date due
-			  
-			}
-		} 
-		else if( // Specific next day of the week
-						arg == "mon" || arg == "tue" || arg == "wed" || arg == "thu" || 
-						arg == "fri" || arg == "sat" || arg == "sun")
-		{
-			
-		}
-		else if( // Target date specified in short, medium or long format
-						IsNumber(arg[0]) == true && (
-						(arg.length == DateFormatShort.length && arg[2] == '/') || 
-						(arg.length == DateFormatMedium.length && arg[2] == '/' && arg[5] == '/') || 
-						((arg.length + 1) == DateFormatLong.length && arg[2] == '/' && arg[5] == '/') ))
-		{
-			ui16 year = Null;
-			{
-				// If these both are false, the format is dd/mm
-				bool hasShortYear = arg.length == DateFormatMedium.length;
-				bool hasLongYear = arg.length == DateFormatLong.length;
-				
-				// Copy into temp string omitting the forward slashes
-				string tempString = DateFormatLong;
-				ForAll(arg.length) {
-					if(arg[it] != '/')
-						tempString[it] = arg[it];
-					else
-						tempString[it] = '\0';
-				}
-				
-				ui8 day = StringToInt(tempString);
-				ui8 month = StringToInt(tempString + 3);
-				
-				if(hasShortYear == true)
-					year = 2000 + StringToInt(arg + 6);
-				else if(hasLongYear == true)
-					year = StringToInt(arg + 6);
-				else 
-					year = GetDate(0).year;
-				
-				// Sanity check
-				// @TODO - Check whether the date is real, e.g. 30th of feb
-				if(day < 0 || day > 31 || month < 0 || month > 12 || year < GetDate(0).year) {
-					Log(logFile, "ERROR - Invalid target date\n");
-					goto usage_msg; // @TODO - More specific message?
-				}
+		else if(arg[0] == '#') { // Tags
+		  if(arg.length == 1) {
+				printf("ERROR: Invalid tag supplied: %s\n\n", arg);
+				goto usage_msg;
 			}
 			
-			// Create target date
-			{
-				targetDate[0] = arg[0];
-				targetDate[1] = arg[1];
-				targetDate[2] = '/';
-				targetDate[3] = arg[3];
-				targetDate[4] = arg[4];
-				targetDate[5] = '/';
-				auto string = ToString(year);
-				ForAll(4)
-					targetDate[it + 6] = string[it];
-			}
-		}
-		else if(arg.length == 1 && (arg[0] == '!' || arg[0] == '?' || arg[0] == '@')) // Flag
-			flag = arg;
-		else if(arg[0] == '#') { // Group
-			ForAll(MaxGroups) {
-				if(groups[it] == Null) {
-					groups[it] = arg;
+			ForAll(MaxTags) {
+				if(tags[it].length == 0) {
+					tags[it] = arg;
 					break;
 				}
 			}
 		}
-		else if(taskString == Null) // If none of the above it is considered to be an entry string only if Null. The " is not carried as part of the argument.
-			taskString = arg;
 		else { // Invalid argument
 			printf("ERROR: Invalid argument: %s\n\n", arg);
 			goto usage_msg;
@@ -280,13 +200,8 @@ ConsoleAppEntryPoint(args, argsCount) {
 	}		
 	
 	// Check minimum required arguments have been supplied
-	// Command validity checked further down
-	if(taskString == Null) {
+	if(taskString.length == 0) {
 		Log(logFile, "ERROR - No task string specified.\n");
-		goto usage_msg;
-	}
-	else if(targetDate[0] == '-'){
-		Log(logFile, "ERROR - No target date specified.\n");
 		goto usage_msg;
 	}
 	
@@ -303,7 +218,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 		
 		Log(logFile, "Task added\n");
 		
-		PrintDetailedTask(Null, taskString, dateAdded, targetDate, reschedulePeriod, flag, groups);
+		PrintDetailedTask(Null, taskString, dateAdded, targetDate, reschedulePeriod, flag, tags);
 		
 		// @TODO - Store in calendar.txt
 		
@@ -312,15 +227,15 @@ ConsoleAppEntryPoint(args, argsCount) {
 	else if(command == "list") {
 		#if 0
 	  // @TODO
-		// By string, ID, flags & groups, - means not
+		// By string, ID, flags & tags, - means not
 		// <60 days & >60 days
 		// Automatically list preempt tasks with a date <30 days when listing priority tasks?
 		
 		// @TODO - Parse calendar entries and display
-		// id(8 bit unsigned) task_text(string) date_added(dd/mm/yyyy) date_due_by(dd/mm/yyyy | -) reschedule_data(days | -) flag(! | ? | @) groups(#id1 #id2 ... #id5)
+		// id(8 bit unsigned) task_text(string) date_added(dd/mm/yyyy) date_due_by(dd/mm/yyyy | -) reschedule_data(days | -) flag(! | ? | @) tags(#id1 #id2 ... #id5)
 		
 		// @TODO - search / list filters - view only task, id, all tasks from #group, etc
-		// 			 	- E.g. view only the groups of tasks due by x date
+		// 			 	- E.g. view only the tags of tasks due by x date
 		
 		// @TODO - Specify which info columns are wanted - -da (date added) -dd (date due) etc ?
 		
@@ -339,7 +254,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 		const char* dateDue = Null;
 		const char* reschedulePeriod = Null;
 		const char* flag = Null;
-		const char* groups[MaxGroups] = { Null };
+		const char* tags[MaxTags] = { Null };
 		
 		const char* toStore = Null; // Temp string
 		bool        scanningTaskString = false;
@@ -348,9 +263,9 @@ ConsoleAppEntryPoint(args, argsCount) {
 			
 			if(c == '\n') { // Reset task data
 				if(printDetailed == true)
-					PrintDetailedTask(id, task, dateAdded, dateDue, reschedulePeriod, flag, groups);
+					PrintDetailedTask(id, task, dateAdded, dateDue, reschedulePeriod, flag, tags);
 				else
-					PrintTaskWide(id, task, dateAdded, dateDue, reschedulePeriod, flag, groups);
+					PrintTaskWide(id, task, dateAdded, dateDue, reschedulePeriod, flag, tags);
 				
 				id = Null;
 				task = Null;
@@ -359,8 +274,8 @@ ConsoleAppEntryPoint(args, argsCount) {
 				reschedulePeriod = Null;
 				flag = Null;
 				
-				ForAll(MaxGroups)
-					groups[it] = Null;
+				ForAll(MaxTags)
+					tags[it] = Null;
 					
 				Log(logFile, "\n");
 			}
@@ -390,9 +305,9 @@ ConsoleAppEntryPoint(args, argsCount) {
 				else if(flag == Null)
 					flag = toStore;
 				else if(task != Null) {
-					ForAll(MaxGroups) {
-						if(groups[it] == Null) {
-							groups[it] = toStore;
+					ForAll(MaxTags) {
+						if(tags[it] == Null) {
+							tags[it] = toStore;
 							break;
 						}
 					}
