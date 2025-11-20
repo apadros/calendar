@@ -13,6 +13,9 @@ Dates
 		
 Reschedule
 	- -resc / -r switch
+	
+Groups / Tags
+	- Command to list all established groups / tags
 		
 Task file
 	- Format: /t[task text(string)] /da[date added(dd/mm/yyyy)] /dd[date due(dd/mm/yyyy | -)] /r[reschedule(days | -)] /f[flag(! | ? | @ | -)] /g[groups, up to 5]\r\n

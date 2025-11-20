@@ -21,7 +21,7 @@ const ui8 	 MaxGroups = 5;
 
 #include "helpers.cpp"
 
-string 		ValidCommands[] = 			 { "add", "list", "del", "resc", "mod", "undo", "redo" };
+string 		ValidCommands[] = 	{ "add", "list", "del", "resc", "mod", "undo", "redo" };
 BeginEnum(ValidCommandsIndex) { Add, List, Delete, Reschedule, Modify, Undo, Redo, Length } EndEnum(ValidCommandsIndex);
 
 // Storage format

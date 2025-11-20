@@ -7,12 +7,15 @@ void ConvertStringToLowerCase(const char* s) {
 	auto length = GetStringLength(s, false);
 	ForAll(length) {
     if(s[it] >= 'A' && s[it] <= 'Z')
-			s[it] += 'a' - 'A';
+			((char*)s)[it] += 'a' - 'A';
 	}
 }
 
 // @EXPORT_API
+// IsDate() should always be called before this. Check not made within GetDate() to avoid calling the former twice.
 date GetDate(const char* s) {
+	AssertRetType(s != Null, date());
+	
 	string dateString = s;
 	
 	ConvertStringToLowerCase(dateString);
@@ -23,7 +26,7 @@ date GetDate(const char* s) {
 		{
 			const char* days[] = { "mon", "tue", "wed", "thu", "fri", "sat", "sun" };
 			ForAll(7) {
-				if(arg == days[it]) {
+				if(dateString == days[it]) {
 					argDay = it + 1;
 					break;
 				}
@@ -36,7 +39,7 @@ date GetDate(const char* s) {
 		
 		return GetDate(offset);
 	}
-	else {
+	else { // Date in short, medium or long format
 		ui8 day = 0;
 		ui8 month = 0;
 		ui16 year = 0;
@@ -60,7 +63,14 @@ date GetDate(const char* s) {
 		}
 		
 		// Year
-		if(dateString.length >= DateFormatMedium.length) {
+		if(dateString.length == DateFormatShort.length) { // If no year is supplied
+			auto currentDate = GetDate(0);
+			if(month < currentDate.month || month == currentDate.month && day < currentDate.day)
+				year = currentDate.year + 1;
+			else
+				year = currentDate.year;
+		}
+		else {
 			auto y = StringToInt(dateString.chars + 6);
 			
 			auto currentYear = GetDate(0).year;
@@ -71,13 +81,27 @@ date GetDate(const char* s) {
 			year = y;
 		}
 		
-		// @TODO - Create a tm struct, fill in day, month & year, convert to time_t with mktime(), then convert back.
-		// tm->wday should have been filled out.
-		
+		// Get the offset between today and target date, then return
+		{
+			auto currentDate = GetDate(0);
+			
+			// Check various sizes first in case of API mods
+			AssertRetType(sizeof(currentDate.year) == sizeof(ui16), date());
+			AssertRetType(sizeof(currentDate.month) == sizeof(ui8), date());
+			AssertRetType(sizeof(currentDate.day) == sizeof(ui8), date());
+			
+			// Get offset between dates
+			ui32 currentDateUI32 = currentDate.year << 16 | currentDate.month << 8 | currentDate.day; // Pack into ui32
+			ui32 targetDateUI32 = year << 16 | month << 8 | day;
+			
+			if(targetDateUI32 >= currentDateUI32)
+				return GetDate(targetDateUI32 - currentDateUI32);
+			else
+				return GetDate(-(currentDateUI32 - targetDateUI32));
+		}
 	}
 	
-	Assert(false);
-	
+	Assert(false); // @TODO - Replace with InvalidCodePath when implemented
 	return date();
 }
 
