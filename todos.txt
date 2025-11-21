@@ -16,7 +16,7 @@ Groups / Tags
 	- Command to list all established groups / tags
 		
 Task file
-	- Format: [task text("string")] [date added(dd/mm/yyyy)] [date due(dd/mm/yyyy | -)] [reschedule(days | -)] [flag(! | ? | @ | -)] [groups, up to 5 (#1, #2 ...)]\r\n
+	- Format: [task text("string")] [date added(dd/mm/yyyy)] [date due(dd/mm/yyyy | -)] [reschedule(days | -)] [flag(! | ? | @ | -)] [groups, up to 5 (g1, g2 ...)]\r\n
 	- Saving changes to it
 	- Daily local backup at the start of the day?
 		- Limit to 10 days

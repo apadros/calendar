@@ -24,7 +24,15 @@ const ui8 	 MaxTags = 5;
 string 		ValidCommands[] = 	{ "add", "list", "del", "resc", "mod", "undo", "redo" };
 BeginEnum(ValidCommandsIndex) { Add, List, Delete, Reschedule, Modify, Undo, Redo, Length } EndEnum(ValidCommandsIndex);
 
-// Storage format
+struct taskListEntry {
+	string task;
+	string dateAdded;
+	string dateDue;
+	ui8    reschedulePeriod;
+	char   flag;
+	string tags[MaxTags];
+};
+
 ConsoleAppEntryPoint(args, argsCount) {
 	auto logFile = OpenLogFile();
 	
@@ -137,7 +145,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 							calendarDays = days;
 					}
 				
-					targetDate = GetDate(calendarDays);
+					targetDate = DateToString(GetDate(calendarDays));
 				}
 				else if(reschedulePeriod.length == 0)
 					reschedulePeriod = arg.chars + 1;
@@ -148,7 +156,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 			}
 			else {
 				if(targetDate.length == 0)
-					targetDate = StringToDate(arg);
+					targetDate = DateToString(StringToDate(arg)); // Conversion back and forth to set the standard date format dd/mm/yyyy
 				else {
 					printf("ERROR: Target date already supplied\n\n", arg);
 					goto usage_msg;
@@ -205,17 +213,6 @@ ConsoleAppEntryPoint(args, argsCount) {
 		goto usage_msg;
 	}
 	
-	// Open the todos file & generate task list 
-	// @TODO - implement task list as a stack to avoid max number of entries
-	struct {
-		string task;
-		string dateAdded;
-		string dateDue;
-		ui8    reschedulePeriod;
-		char   flag;
-		string tags[MaxTags];
-	} taskList;
-	
 	// Open the todos file and generate task list
 	{
 		#ifdef APAD_DEBUG
@@ -229,15 +226,61 @@ ConsoleAppEntryPoint(args, argsCount) {
 			goto program_exit;
 		}
 		
-		auto todos = LoadFile(dataPath);
+		auto file = LoadFile(dataPath);
 		if(ErrorIsSet() == true) {
 			Log(logFile, "ERROR - Couldn't load data/calendar.txt");
 			goto program_exit;
 		}
 		
 		// Parse tasks
-		// Format: [task text("string")] [date added(dd/mm/yyyy)] [date due(dd/mm/yyyy | -)] [reschedule(days | -)] [flag(! | ? | @ | -)] [groups, up to 5 (#1, #2 ...)]\r\n
+		// Format: [task text("string")] [date added(dd/mm/yyyy)] [date due(dd/mm/yyyy | -)] [reschedule(days | -)] [flag(! | ? | @ | -)] [groups, up to 5 (g1, g2 ...)]\r\n
+		// @TODO - implement task list as a stack to avoid max number of entries
 		
+		// Extract data
+		auto taskList = AllocateStack(128);
+		auto line = AllocateStack(128);
+		char* data = Null;
+		for(ui32 it = 0; it < file.size; it += 1) {
+			char* c = (char*)file.memory + it;
+			
+			if(*c == '\n') { // Add task to list
+				#if 0
+				struct taskListEntry {
+					string task;
+					string dateAdded;
+					string dateDue;
+					ui8    reschedulePeriod;
+					char   flag;
+					string tags[MaxTags];
+				};
+				#endif
+			
+				Assert(line.size % sizeof(char*) == 0);
+				char** lineArray = (char**)line.memory;
+				auto*  task = (taskListEntry*)PushMemory(sizeof(taskListEntry), taskList);
+				task->task = (char*)lineArray[0];
+				task->dateAdded = lineArray[1];
+				task->dateDue = lineArray[2];
+				task->reschedulePeriod = (ui8)lineArray[3];
+				task->flag = *(lineArray[4]);
+				ui8 totalEntries = line.size / sizeof(char*);
+				Assert(totalEntries - 5 <= MaxTags);
+				FromTo(5, totalEntries)
+					task->tags[it - 5] = lineArray[it];
+					
+				ResetStack(line);
+				
+				break; // @TODO - Remove after testing
+			}
+			
+			if(data == Null && IsWhitespace(*c) == false) // Start of new data
+				data = c;
+			else if(IsWhitespace(*c) == true && data != Null) { // End of current data
+				PushInstance(data, line);
+				*c = '\0';
+				data = Null;
+			}
+		}
 	}
 	
 	// Parse command, output error message if invalid
@@ -355,7 +398,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 		}
 		#endif
 	}
-	else if(command == ValidCommands[ValidCommandsIndex::Delete) { // Delete - @TODO
+	else if(command == ValidCommands[ValidCommandsIndex::Delete]) { // Delete - @TODO
 	}
 	else if(command == ValidCommands[ValidCommandsIndex::Modify]) { // Modify - @TODO
 		// @TODO

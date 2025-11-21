@@ -3,6 +3,11 @@ bool IsValidChar(char c) {
 }
 
 // @EXPORT_API
+bool IsWhitespace(char c) {
+	return c == ' ' || c == '\t' || c == '\v' || c == '\r' || c == '\n';
+}
+
+// @EXPORT_API
 void ConvertStringToLowerCase(const char* s) {
 	auto length = GetStringLength(s, false);
 	ForAll(length) {
@@ -106,6 +111,11 @@ date StringToDate(const char* s) {
 }
 
 // @EXPORT_API
+void ResetStack(memory_block& stack) {
+  stack.size = 0;
+}
+
+// @EXPORT_API
 bool IsDate(const char* s) {
 	// string DateFormatShort  = "dd/mm";
 	// string DateFormatMedium = "dd/mm/yy";
@@ -187,7 +197,7 @@ void PrintDetailedTask(const char* id, const char* task, const char* dateAdded, 
 		printf("-\n");
 	else { 
 		printf("%s\n", groups[0] + 1);
-		FromTo(1, MaxGroups) {
+		FromTo(1, MaxTags) {
 			if(groups[it] != Null)
 				printf("            %s\n", groups[it] + 1); // +1 to skip the #
 		}
@@ -275,7 +285,7 @@ void PrintTaskWide(const char* id, const char* task, const char* dateAdded, cons
 	}
 	
 	// Groups
-	ForAll(MaxGroups) {
+	ForAll(MaxTags) {
 		const char* group = groups[it];
 		if(group == Null)
 			continue;
