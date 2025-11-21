@@ -40,23 +40,6 @@ ConsoleAppEntryPoint(args, argsCount) {
 		#endif
 	#endif
 	
-	#ifdef APAD_DEBUG
-	string dataPath = "../../data/calendar.txt";
-	#else
-	string dataPath = "data/calendar.txt";
-	#endif 
-	
-	if(FileExists(dataPath) == false) {
-		Log(logFile, "ERROR - Couldn't find data/calendar.txt\n");
-		goto program_exit;
-	}
-	
-	auto calendar = LoadFile(dataPath);
-	if(ErrorIsSet() == true) {
-		Log(logFile, "ERROR - Couldn't load data/calendar.txt");
-		goto program_exit;
-	}
-
 	if(argsCount < 2) {
 		Log(logFile, "ERROR - No commands supplied.\n");
 		goto usage_msg;
@@ -165,7 +148,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 			}
 			else {
 				if(targetDate.length == 0)
-					targetDate = GetDate(arg);
+					targetDate = StringToDate(arg);
 				else {
 					printf("ERROR: Target date already supplied\n\n", arg);
 					goto usage_msg;
@@ -222,16 +205,53 @@ ConsoleAppEntryPoint(args, argsCount) {
 		goto usage_msg;
 	}
 	
-	// Parse command, output error message if invalid
-	if(command == "add") {
-	  string dateAdded = DateFormatLong;
-		{
-			auto date = GetDate(Null);
-			auto string = DateToString(date);
-			auto length = GetStringLength(dateAdded, false);
-			ForAll(length)
-				dateAdded[it] = string[it];
+	// Open the todos file & generate task list 
+	// @TODO - implement task list as a stack to avoid max number of entries
+	struct {
+		string task;
+		string dateAdded;
+		string dateDue;
+		ui8    reschedulePeriod;
+		char   flag;
+		string tags[MaxTags];
+	} taskList;
+	
+	// Open the todos file and generate task list
+	{
+		#ifdef APAD_DEBUG
+		string dataPath = "../../data/calendar.txt";
+		#else
+		string dataPath = "data/calendar.txt";
+		#endif 
+		
+		if(FileExists(dataPath) == false) {
+			Log(logFile, "ERROR - Couldn't find data/calendar.txt\n");
+			goto program_exit;
 		}
+		
+		auto todos = LoadFile(dataPath);
+		if(ErrorIsSet() == true) {
+			Log(logFile, "ERROR - Couldn't load data/calendar.txt");
+			goto program_exit;
+		}
+		
+		// Parse tasks
+		// Format: [task text("string")] [date added(dd/mm/yyyy)] [date due(dd/mm/yyyy | -)] [reschedule(days | -)] [flag(! | ? | @ | -)] [groups, up to 5 (#1, #2 ...)]\r\n
+		
+	}
+	
+	// Parse command, output error message if invalid
+	if(command == ValidCommands[ValidCommandsIndex::Add]) {
+		string dateAdded = DateToString(GetDate(0));
+		
+		string command;
+		string taskString;
+		string targetDate;
+		string reschedulePeriod;
+		string flag;
+		string tags[MaxTags];
+		
+		// @TODO - Read the file, create internal task list, append new task, save to file
 		
 		Log(logFile, "Task added\n");
 		
@@ -241,7 +261,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 		
 		goto program_exit;
 	}
-	else if(command == "list") {
+	else if(command == ValidCommands[ValidCommandsIndex::List]) {
 		#if 0
 	  // @TODO
 		// By string, ID, flags & tags, - means not
@@ -335,9 +355,9 @@ ConsoleAppEntryPoint(args, argsCount) {
 		}
 		#endif
 	}
-	else if(command == "del") { // Delete - @TODO
+	else if(command == ValidCommands[ValidCommandsIndex::Delete) { // Delete - @TODO
 	}
-	else if(command == "mod") { // Modify - @TODO
+	else if(command == ValidCommands[ValidCommandsIndex::Modify]) { // Modify - @TODO
 		// @TODO
 		// Print the details which have been updated, followed by the entire task data
 		// - E.g. Task ID / flag / group updated
@@ -346,11 +366,11 @@ ConsoleAppEntryPoint(args, argsCount) {
 		// before and after, then display the updated entry will all info
 
 	}
-	else if(command == "resc") { // Reschedule @TODO
+	else if(command == ValidCommands[ValidCommandsIndex::Reschedule]) { // Reschedule @TODO
 	}
-	else if(command == "undo") { // @TODO
+	else if(command == ValidCommands[ValidCommandsIndex::Undo]) { // @TODO
 	}
-	else if(command == "redo") { // @TODO
+	else if(command == ValidCommands[ValidCommandsIndex::Redo]) { // @TODO
 	}
 	else {
 		Log(logFile, "ERROR - Invalid command supplied.\n");
@@ -371,6 +391,5 @@ ConsoleAppEntryPoint(args, argsCount) {
 	printf("%s\n", (const char*)logFile.memory);
 	CloseLogFile(logFile);
 
-	
 	return 0;
 }

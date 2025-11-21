@@ -13,7 +13,7 @@ void ConvertStringToLowerCase(const char* s) {
 
 // @EXPORT_API
 // IsDate() should always be called before this. Check not made within GetDate() to avoid calling the former twice.
-date GetDate(const char* s) {
+date StringToDate(const char* s) {
 	AssertRetType(s != Null, date());
 	
 	string dateString = s;
