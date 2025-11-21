@@ -82,8 +82,8 @@ ConsoleAppEntryPoint(args, argsCount) {
 		}
 		
 		if(found == false) {
+			printf("ERROR: Invalid command\n\n");
 			goto usage_msg;
-			// @TODO - More specific error message
 		}
 	}
 	
@@ -180,18 +180,35 @@ ConsoleAppEntryPoint(args, argsCount) {
 				goto usage_msg;
 			}
 		}
-		else if(arg[0] == '#') { // Tags
-		  if(arg.length == 1) {
-				printf("ERROR: Invalid tag supplied: %s\n\n", arg);
+		else if(arg == "-t") { // Tags
+			it += 1;
+			
+			if(it == argsCount) {
+				printf("ERROR: No tags specified\n\n");
 				goto usage_msg;
 			}
 			
-			ForAll(MaxTags) {
-				if(tags[it].length == 0) {
-					tags[it] = arg;
-					break;
+			// Everything following this switch is considered to be a tag
+			do {
+				arg = args[it];
+				
+				bool added = false;
+				ForAll(MaxTags) {
+					if(tags[it].length == 0) {
+						tags[it] = arg;
+						added = true;
+						break;
+					}
 				}
+				
+				if(added == false) {
+					printf("ERROR: Number of tags exceeded, max 5\n\n");
+					goto program_exit;
+				}
+				
+				it += 1;
 			}
+			while(it < argsCount);
 		}
 		else { // Invalid argument
 			printf("ERROR: Invalid argument: %s\n\n", arg);
