@@ -112,6 +112,7 @@ date StringToDate(const char* s) {
 
 // @EXPORT_API
 void ResetStack(memory_block& stack) {
+	ClearMemory(stack.memory, stack.size);
   stack.size = 0;
 }
 

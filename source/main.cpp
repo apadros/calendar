@@ -35,16 +35,18 @@ struct taskListEntry {
 
 ConsoleAppEntryPoint(args, argsCount) {
 	auto logFile = OpenLogFile();
+	file tasksFile = {};
 	
 	Log(logFile, "\n"); // Insert blank line for clarity
 	
 	#ifdef APAD_DEBUG
 		#if 1
 		args[1] = "add";
-		args[2] = "new task";
-		args[3] = "mon";
+		args[2] = "-s";
+		args[3] = "new task";
+		args[4] = "mon";
 		// args[4] = "+2";
-		argsCount = 4;	
+		argsCount = 5;	
 		#endif
 	#endif
 	
@@ -214,20 +216,19 @@ ConsoleAppEntryPoint(args, argsCount) {
 	}
 	
 	// Open the todos file and generate task list
-	file tasksFile;
 	{
 		#ifdef APAD_DEBUG
-		string dataPath = "../../data/calendar.txt";
+		string dataPath = "..\\..\\data\\calendar.txt";
 		#else
 		string dataPath = "data/calendar.txt";
 		#endif 
-		
-		if(FileExists(dataPath) == false) {
+				
+		if(Win32FileExists(dataPath) == false) { // @TODO - Replace with FileExists() once API bug fixed.
 			Log(logFile, "ERROR - Couldn't find data/calendar.txt\n");
 			goto program_exit;
 		}
 		
-		tasksFile = LoadFile(dataPath);
+		tasksFile = Win32LoadFile(dataPath); // @TODO - Replace with LoadFile() once API bug fixed.
 		if(ErrorIsSet() == true) {
 			Log(logFile, "ERROR - Couldn't load data/calendar.txt");
 			goto program_exit;
@@ -241,8 +242,18 @@ ConsoleAppEntryPoint(args, argsCount) {
 		auto  taskList = AllocateStack(128);
 		auto  line = AllocateStack(128);
 		char* data = Null;
+		bool  readingTaskString = false;
 		for(ui32 it = 0; it < tasksFile.size; it += 1) {
 			char* c = (char*)tasksFile.memory + it;
+			
+			if(*c == '"') {
+				if(readingTaskString == false)
+					data = c + 1;
+				else
+					*c = ' ';
+				
+				Toggle(readingTaskString);
+			}
 			
 			if(*c == '\n') { // Add task to list
 				#if 0
@@ -255,14 +266,22 @@ ConsoleAppEntryPoint(args, argsCount) {
 					string tags[MaxTags];
 				};
 				#endif
+				
+				PreventCompilation; // Bug found in PushMemory(), incorrect copying of stack memory when requesting a new one. Fix before conitnuing this project.
 			
 				Assert(line.size % sizeof(char*) == 0);
 				char** lineArray = (char**)line.memory;
 				auto*  task = (taskListEntry*)PushMemory(sizeof(taskListEntry), taskList);
+				ClearMemory(task, sizeof(taskListEntry));
 				task->task = lineArray[0];
 				task->dateAdded = lineArray[1];
 				task->dateDue = lineArray[2];
-				task->reschedulePeriod = (ui8)lineArray[3];
+				
+				string resc = lineArray[3];
+				if(resc.length == 1 && resc[0] == '-')
+					task->reschedulePeriod = 0;
+				else
+					task->reschedulePeriod = StringToInt(resc);
 				task->flag = *(lineArray[4]);
 				ui8 totalEntries = line.size / sizeof(char*);
 				Assert(totalEntries - 5 <= MaxTags);
@@ -270,13 +289,11 @@ ConsoleAppEntryPoint(args, argsCount) {
 					task->tags[it - 5] = lineArray[it];
 					
 				ResetStack(line);
-				
-				break; // @TODO - Remove after testing
 			}
 			
 			if(data == Null && IsWhitespace(*c) == false) // Start of new data
 				data = c;
-			else if(IsWhitespace(*c) == true && data != Null) { // End of current data
+			else if(readingTaskString == false && IsWhitespace(*c) == true && data != Null) { // End of current data
 				PushInstance(data, line);
 				*c = '\0';
 				data = Null;
