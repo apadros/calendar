@@ -8,7 +8,7 @@
 #include "apad_error.h"
 #include "apad_file.h"
 #include "apad_intrinsics.h"
-#include "apad_logging.h"
+#include "apad_log.h"
 #include "apad_maths.h"
 #include "apad_string.h"
 #include "apad_time.h"
@@ -39,10 +39,10 @@ ConsoleAppEntryPoint(args, argsCount) {
 	Log(logFile, "\n"); // Insert blank line for clarity
 	
 	#ifdef APAD_DEBUG
-		#if 0
+		#if 1
 		args[1] = "add";
 		args[2] = "new task";
-		args[3] = "mond";
+		args[3] = "mon";
 		// args[4] = "+2";
 		argsCount = 4;	
 		#endif
@@ -214,6 +214,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 	}
 	
 	// Open the todos file and generate task list
+	file tasksFile;
 	{
 		#ifdef APAD_DEBUG
 		string dataPath = "../../data/calendar.txt";
@@ -226,7 +227,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 			goto program_exit;
 		}
 		
-		auto file = LoadFile(dataPath);
+		tasksFile = LoadFile(dataPath);
 		if(ErrorIsSet() == true) {
 			Log(logFile, "ERROR - Couldn't load data/calendar.txt");
 			goto program_exit;
@@ -237,11 +238,11 @@ ConsoleAppEntryPoint(args, argsCount) {
 		// @TODO - implement task list as a stack to avoid max number of entries
 		
 		// Extract data
-		auto taskList = AllocateStack(128);
-		auto line = AllocateStack(128);
+		auto  taskList = AllocateStack(128);
+		auto  line = AllocateStack(128);
 		char* data = Null;
-		for(ui32 it = 0; it < file.size; it += 1) {
-			char* c = (char*)file.memory + it;
+		for(ui32 it = 0; it < tasksFile.size; it += 1) {
+			char* c = (char*)tasksFile.memory + it;
 			
 			if(*c == '\n') { // Add task to list
 				#if 0
@@ -258,7 +259,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 				Assert(line.size % sizeof(char*) == 0);
 				char** lineArray = (char**)line.memory;
 				auto*  task = (taskListEntry*)PushMemory(sizeof(taskListEntry), taskList);
-				task->task = (char*)lineArray[0];
+				task->task = lineArray[0];
 				task->dateAdded = lineArray[1];
 				task->dateDue = lineArray[2];
 				task->reschedulePeriod = (ui8)lineArray[3];
@@ -428,8 +429,8 @@ ConsoleAppEntryPoint(args, argsCount) {
 	// @TODO - A git-like set of help messages for individual commands?
 			
 	program_exit:
-	if(IsValid(calendar) == true)
-		FreeFile(calendar);
+	if(IsValid(tasksFile) == true)
+		FreeFile(tasksFile);
 	
 	printf("%s\n", (const char*)logFile.memory);
 	CloseLogFile(logFile);

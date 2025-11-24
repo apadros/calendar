@@ -3,6 +3,6 @@
 if not exist build ( mkdir build )
 pushd build
 
-cl /nologo /w /I..\..\..\API\release /Fecalendar /Od /Zi ..\main.cpp ..\..\..\API\release\*.lib
+cl /nologo /w /I..\..\lib64 /Fecalendar /Od /Zi ..\main.cpp ..\..\lib64\*.lib
 
 popd

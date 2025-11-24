@@ -3,7 +3,7 @@
 if not exist build ( mkdir build )
 pushd build
 
-cl /nologo /w /I..\..\..\API\release /Fecalendar /O2 ..\main.cpp ..\..\..\API\release\*.lib
+cl /nologo /w /I..\..\lib64 /Fecalendar /O2 ..\main.cpp ..\..\lib64\*.lib
 
 move calendar.exe ..\..
 
