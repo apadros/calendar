@@ -20,9 +20,15 @@ imported_function void 				SetError(const char* string);
 
 // ******************** Assertions ******************** //
 
+imported_function bool IsAssertionPrintingSet(); // Returns current state
+
+imported_function void SetAssertionPrinting(bool b); // Will enable automatic printing of failed assertions.
+																										 // True by default. 
+																										 // Won't work for APAD_DEBUGGER_ASSERTIONS assertions.
+
 // Assert()
 #include <intrin.h> // For __debugbreak()
-#ifdef APAD_DEBUG
+#ifdef APAD_DEBUGGER_ASSERTIONS
 
 // Will break into the debugger in debug mode and stop and exit program execution in release mode
 #define Assert(_condition) { \
@@ -41,10 +47,12 @@ imported_function void 				SetError(const char* string);
   if(!(_condition)) { \
 	  char buffer[256] = {}; \
 		sprintf(buffer, "Assertion failed \
-										 \nCondition - %s, \
-										 \nFile      - %s, \
-										 \nLine      - %lu", #_condition, __FILE__, __LINE__); \
+										 \n[Condition] %s \
+										 \n[File]      %s \
+										 \n[Line]      %lu", #_condition, __FILE__, __LINE__); \
 		SetError((const char*)buffer); \
+		if(IsAssertionPrintingSet() == true) \
+		  printf("\n%s\n", GetError()); \
 		if(IsExitIfErrorSet() == true) \
 		  ExitProgram(true); \
 	} \
@@ -53,7 +61,7 @@ imported_function void 				SetError(const char* string);
 #endif
 
 // AssertRet()
-#ifdef APAD_DEBUG
+#ifdef APAD_DEBUGGER_ASSERTIONS
 
 #define AssertRet(_condition) \
 	Assert(_condition)
@@ -69,7 +77,7 @@ imported_function void 				SetError(const char* string);
 #endif
 
 // AssertRetType()
-#ifdef APAD_DEBUG
+#ifdef APAD_DEBUGGER_ASSERTIONS
 
 #define AssertRetType(_condition, _retValue) \
 	Assert(_condition)
@@ -83,5 +91,8 @@ imported_function void 				SetError(const char* string);
 }
 
 #endif
+
+// InvalidCodePath
+#define InvalidCodePath Assert(false)
 
 #endif

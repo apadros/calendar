@@ -218,26 +218,25 @@ ConsoleAppEntryPoint(args, argsCount) {
 	// Open the todos file and generate task list
 	{
 		#ifdef APAD_DEBUG
-		string dataPath = "..\\..\\data\\calendar.txt";
+		string dataPath = "..\\..\\data\\tasklist.txt";
 		#else
-		string dataPath = "data/calendar.txt";
+		string dataPath = "data/tasklist.txt";
 		#endif 
 				
-		if(Win32FileExists(dataPath) == false) { // @TODO - Replace with FileExists() once API bug fixed.
-			Log(logFile, "ERROR - Couldn't find data/calendar.txt\n");
+		if(FileExists(dataPath) == false) {
+			Log(logFile, "ERROR - Couldn't find data/tasklist.txt\n");
 			goto program_exit;
 		}
 		
-		tasksFile = Win32LoadFile(dataPath); // @TODO - Replace with LoadFile() once API bug fixed.
+		tasksFile = LoadFile(dataPath);
 		if(ErrorIsSet() == true) {
-			Log(logFile, "ERROR - Couldn't load data/calendar.txt");
+			Log(logFile, "ERROR - Couldn't load data/tasklist.txt");
 			goto program_exit;
 		}
 		
 		// Parse tasks
 		// Format: [task text("string")] [date added(dd/mm/yyyy)] [date due(dd/mm/yyyy | -)] [reschedule(days | -)] [flag(! | ? | @ | -)] [groups, up to 5 (g1, g2 ...)]\r\n
-		// @TODO - implement task list as a stack to avoid max number of entries
-		
+				
 		// Extract data
 		auto  taskList = AllocateStack(128);
 		auto  line = AllocateStack(128);
@@ -267,11 +266,9 @@ ConsoleAppEntryPoint(args, argsCount) {
 				};
 				#endif
 				
-				PreventCompilation; // Bug found in PushMemory(), incorrect copying of stack memory when requesting a new one. Fix before conitnuing this project.
-			
 				Assert(line.size % sizeof(char*) == 0);
 				char** lineArray = (char**)line.memory;
-				auto*  task = (taskListEntry*)PushMemory(sizeof(taskListEntry), taskList);
+				auto*  task = (taskListEntry*)Push(sizeof(taskListEntry), taskList);
 				ClearMemory(task, sizeof(taskListEntry));
 				task->task = lineArray[0];
 				task->dateAdded = lineArray[1];
@@ -318,7 +315,7 @@ ConsoleAppEntryPoint(args, argsCount) {
 		
 		PrintDetailedTask(Null, taskString, dateAdded, targetDate, reschedulePeriod, flag, tags);
 		
-		// @TODO - Store in calendar.txt
+		// @TODO - Store in tasklist.txt
 		
 		goto program_exit;
 	}
